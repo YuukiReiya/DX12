@@ -4,13 +4,18 @@
 #include "pch.h"
 #include "framework.h"
 #include "Project1.h"
-
+#include "Application.h"
 #define MAX_LOADSTRING 100
 
 // グローバル変数:
 HINSTANCE hInst;                                // 現在のインターフェイス
 WCHAR szTitle[MAX_LOADSTRING];                  // タイトル バーのテキスト
 WCHAR szWindowClass[MAX_LOADSTRING];            // メイン ウィンドウ クラス名
+
+//定数
+constexpr int c_iWindowWidth = 1024;
+constexpr int c_iWindowHeight = c_iWindowWidth / 16 * 9;
+std::unique_ptr<dxapp::Application> g_App;
 
 // このコード モジュールに含まれる関数の宣言を転送します:
 ATOM                MyRegisterClass(HINSTANCE hInstance);
@@ -19,41 +24,59 @@ LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
-                     _In_opt_ HINSTANCE hPrevInstance,
-                     _In_ LPWSTR    lpCmdLine,
-                     _In_ int       nCmdShow)
+	_In_opt_ HINSTANCE hPrevInstance,
+	_In_ LPWSTR    lpCmdLine,
+	_In_ int       nCmdShow)
 {
-    UNREFERENCED_PARAMETER(hPrevInstance);
-    UNREFERENCED_PARAMETER(lpCmdLine);
+	UNREFERENCED_PARAMETER(hPrevInstance);
+	UNREFERENCED_PARAMETER(lpCmdLine);
 
-    // TODO: ここにコードを挿入してください。
+	// TODO: ここにコードを挿入してください。
 
-    // グローバル文字列を初期化する
-    LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
-    LoadStringW(hInstance, IDC_PROJECT1, szWindowClass, MAX_LOADSTRING);
-    MyRegisterClass(hInstance);
+	// グローバル文字列を初期化する
+	LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
+	LoadStringW(hInstance, IDC_PROJECT1, szWindowClass, MAX_LOADSTRING);
+	MyRegisterClass(hInstance);
 
-    // アプリケーション初期化の実行:
-    if (!InitInstance (hInstance, nCmdShow))
-    {
-        return FALSE;
-    }
+	// アプリケーション初期化の実行:
+	if (!InitInstance(hInstance, nCmdShow))
+	{
+		return FALSE;
+	}
 
-    HACCEL hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDC_PROJECT1));
+	HACCEL hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDC_PROJECT1));
 
-    MSG msg;
+	MSG msg = {};
 
-    // メイン メッセージ ループ:
-    while (GetMessage(&msg, nullptr, 0, 0))
-    {
-        if (!TranslateAccelerator(msg.hwnd, hAccelTable, &msg))
-        {
-            TranslateMessage(&msg);
-            DispatchMessage(&msg);
-        }
-    }
+	//// メイン メッセージ ループ:
+	//while (GetMessage(&msg, nullptr, 0, 0))
+	//{
+	//	if (!TranslateAccelerator(msg.hwnd, hAccelTable, &msg))
+	//	{
+	//		TranslateMessage(&msg);
+	//		DispatchMessage(&msg);
+	//	}
+	//}
 
-    return (int) msg.wParam;
+	//メッセージループ
+	while (WM_QUIT != msg.message) {
+		// アプリケーションにOSからのイベント(メッセージ)を処理する
+		// PeekMessageでイベントをアプリ側で確認しに行く
+		// 非ゲームアプリではGetMessage関数を使うけど詳細はカット！
+		if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
+			TranslateMessage(&msg);
+			// ウィンドウプロシージャにメッセージを送る
+			DispatchMessage(&msg);
+		}
+		else {
+			// メッセージがないときにゲームアプリの処理をする
+			g_App->Run();
+		}
+	}
+	//明示的開放処理
+	g_App.reset();
+	//COM開放
+	return static_cast<int>(msg.wParam);
 }
 
 
@@ -109,6 +132,12 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
    ShowWindow(hWnd, nCmdShow);
    UpdateWindow(hWnd);
 
+
+   RECT rc = { 0,0,c_iWindowWidth,c_iWindowHeight };
+
+   //アプリケーション初期化
+   g_App = std::make_unique<dxapp::Application>();
+   g_App->Setup(hWnd, rc.right - rc.left, rc.bottom - rc.top);
    return TRUE;
 }
 

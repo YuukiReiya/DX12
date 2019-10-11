@@ -1,15 +1,41 @@
-ï»¿#include <sdkddkver.h>
-//MEMO:æˆæ¥­
+// ƒvƒ‰ƒbƒgƒtƒH[ƒ€Œn
+#include <SDKDDKVer.h>
+//MEMO:ö‹Æ
+#pragma region ƒ}ƒNƒ
 #define WIN32_LEAN_AND_MEAN
+// Windows.h‚©‚ç•K—v‚È‚¢‹@”\‚ğ~‚ß‚éƒ}ƒNƒ
+#define NOMINMAX
+#define NODRAWTEXT
+#define NOGDI
+#define NOBITMAP
+#define NOMCX
+#define NOSERVICE
+#define NOHELP
+#pragma endregion
 
-//#define NO_MINMAX
-//#define NODRAWTEXT
-//#define NOGDI
-//#define NOBITMAP
-//#define NOMCX
-//#define NOSERVICE//#define NOHELP//MEMO:è‡ªå·±å®šç¾©ãƒã‚¯ãƒ­//ãƒ˜ãƒƒãƒ€#include <Windows.h>#if _DEBUG	//ãƒ¡ãƒ¢ãƒªãƒªãƒ¼ã‚¯#define _CRTDBG_MAP_ALLOC#include <crtdbg.h>#endif#pragma region DX
-#include <wrl/client.h>#include <wrl/event.h>#pragma comment(lib,"runtimeobject.lib")#pragma endregion
-#pragma region C/C++
+//MEMO:©ŒÈ’è‹`
+#pragma region ƒ}ƒNƒ
+
+#pragma endregion
+
+
+//ƒwƒbƒ_
+#include <Windows.h>
+
+#pragma region ƒƒ‚ƒŠƒŠ[ƒN
+#if _DEBUG||DEBUG
+#define _CRTDBG_MAP_ALLOC
+#include <crtdbg.h>
+#endif
+#pragma endregion
+
+#pragma region DX
+#include <wrl/client.h>
+#include <wrl/event.h>
+#pragma comment(lib,"runtimeobject.lib")
+#pragma endregion
+
+#pragma region C/C++
 #include <array>
 #include <cassert>
 #include <cstdint>
@@ -17,42 +43,80 @@
 #include <stdexcept>
 #include <vector>
 #pragma endregion
-namespace Win{
-	constexpr wchar_t c_szWinsowTitle[] = L"00_HelloD3D12";	constexpr wchar_t c_szClassName[] = L"D3DTutorClassName";	constexpr std::uint32_t c_WindowWidth = 1024;	constexpr std::uint32_t c_WindowHeight = c_WindowWidth / 16 * 9;	LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)	{		switch (message)		{		case WM_CLOSE:			DestroyWindow(hWnd);			break;		case WM_DESTROY:			PostQuitMessage(0);			break;		default:			return DefWindowProc(hWnd, message, wParam, lParam);		}		return 0;	}		HWND CreateHWND(HINSTANCE hInstance, DWORD windowStyle, uint32_t windowWidth,
-		uint32_t windowHeight)	{		if (hInstance == nullptr) {			throw std::invalid_argument("HINSTANCE is nullptr");		}		WNDCLASSEX wc = {};		wc.hInstance = hInstance;		wc.lpfnWndProc = WndProc;		wc.lpszClassName = c_szClassName;		wc.cbSize = sizeof(WNDCLASSEX);		wc.style = CS_HREDRAW | CS_VREDRAW;		wc.cbClsExtra = 0;
+
+namespace {
+	constexpr wchar_t c_szWinsowTitle[] = L"00_HelloD3D12";
+	constexpr wchar_t c_szClassName[] = L"D3DTutorClassName";
+	constexpr std::uint32_t c_WindowWidth = 1024;
+	constexpr std::uint32_t c_WindowHeight = c_WindowWidth / 16 * 9;
+
+#pragma region Windows CALLBACK
+	//ƒEƒBƒ“ƒhƒEƒvƒƒV[ƒWƒƒ
+	LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+	{
+		switch (message)
+		{		case WM_CLOSE:			DestroyWindow(hWnd);			break;		case WM_DESTROY:			PostQuitMessage(0);			break;		default:
+			return DefWindowProc(hWnd, message, wParam, lParam);		}
+		return 0;
+	}
+#pragma endregion
+
+#pragma region Function
+	HWND CreateHWND(HINSTANCE hInstance, DWORD wStyle, uint32_t windowWidth, uint32_t windowHeight)
+	{
+		if (hInstance == nullptr) { throw std::invalid_argument("HINSTANCE is nullptr."); }
+#pragma region ƒEƒBƒ“ƒhƒE—vŒ’è‹`
+		WNDCLASSEX wc = {};
+		wc.hInstance = hInstance;
+		wc.lpfnWndProc = WndProc;
+		wc.lpszClassName = c_szClassName;
+		wc.cbSize = sizeof(WNDCLASSEX);
+		wc.style = CS_HREDRAW | CS_VREDRAW;
+		wc.cbClsExtra = 0;
 		wc.cbWndExtra = 0;
 		wc.hIcon = LoadIcon(hInstance, IDI_APPLICATION);
 		wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
+		//TODO:‚±‚ÌƒLƒƒƒXƒgŒ™‚¢¨CreateBRUSH
 		wc.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
 		wc.lpszMenuName = nullptr;
-		wc.hIconSm = LoadIcon(hInstance, IDI_APPLICATION);		if (!RegisterClassExW(&wc)) {			throw std::runtime_error("RegisterClassExW Failed");		}		HWND hWnd = CreateWindowExW(			0,								// ã‚²ãƒ¼ãƒ ãªã‚‰0ã§OK
-			c_szClassName,			// WNDCLASSEXã«è¨­å®šã—ãŸClassNameã¨åŒã˜ã‚‚ã®ã‚’ä½¿ã†
-			c_szWinsowTitle,		// ã‚¦ã‚£ãƒ³ãƒ‰ã‚¦ã‚¿ã‚¤ãƒˆãƒ«æ–‡å­—åˆ—(ã‚ã¨ã‹ã‚‰å¤‰ãˆã‚‰ã‚Œã‚‹)
-			windowStyle,				// ã‚¦ã‚£ãƒ³ãƒ‰ã‚¦ã‚¹ã‚¿ã‚¤ãƒ«
-			CW_USEDEFAULT,     // ã‚¦ã‚£ãƒ³ãƒ‰ã‚¦ã®Xè»¸è¡¨ç¤ºä½ç½®
-			CW_USEDEFAULT,     // ã‚¦ã‚£ãƒ³ãƒ‰ã‚¦ã®Yè»¸è¡¨ç¤ºä½ç½®
-			windowWidth,			// ã‚¯ãƒ©ã‚¤ã‚¢ãƒ³ãƒˆã®å¹…ã€‚
-			windowHeight,			// ã‚¯ãƒ©ã‚¤ã‚¢ãƒ³ãƒˆã®é«˜ã•
-			nullptr, nullptr,			// nullã§OK
-			hInstance,					// ã“ã®ã‚¢ãƒ—ãƒªã‚±ãƒ¼ã‚·ãƒ§ãƒ³ã®ã‚¤ãƒ³ã‚¹ã‚¿ãƒ³ã‚¹ãƒãƒ³ãƒ‰ãƒ«			nullptr						// nullã§OK		);		if (hWnd == nullptr) {
-			throw std::runtime_error("CreateWindowExW Failed");
-		}
-		return hWnd;	}	//ã‚¨ãƒ³ãƒˆãƒªãƒ¼ãƒã‚¤ãƒ³ãƒˆ	int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevIns,		_In_ LPWSTR lpCmdLine, _In_ int nCmdShow)	{
-		//ä¸ä½¿ç”¨ãªå¼•æ•°ã‚’ã‚³ãƒ³ãƒ‘ã‚¤ãƒ©ã«ä¼ãˆã¦Warningã‚’æŠ‘åˆ¶ã™ã‚‹		UNREFERENCED_PARAMETER(hPrevIns);		UNREFERENCED_PARAMETER(lpCmdLine);#pragma region ãƒ¡ãƒ¢ãƒªãƒªãƒ¼ã‚¯
-#if _DEBUG		_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);#endif#pragma endregion
-		SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);		//COM		Microsoft::WRL::Wrappers::RoInitializeWrapper initialize(RO_INIT_MULTITHREADED);		//å¤±æ•—		if (FAILED(initialize)) { return -1; }		RECT rc = { 0,0,static_cast<LONG>(Win::c_WindowWidth),static_cast<LONG>(Win::c_WindowWidth) };		DWORD wStyle = WS_OVERLAPPEDWINDOW & ~WS_THICKFRAME;		AdjustWindowRect(&rc, wStyle, FALSE);
-		HWND hWnd = Win::CreateHWND(hInstance, wStyle, rc.right - rc.left,
-			rc.bottom - rc.top);		ShowWindow(hWnd, nCmdShow);		//ãƒ¡ã‚¤ãƒ³ãƒ«ãƒ¼ãƒ—		MSG msg = {};		while (WM_QUIT != msg.message)
-		{
-			// ã‚¢ãƒ—ãƒªã‚±ãƒ¼ã‚·ãƒ§ãƒ³ã«OSã‹ã‚‰ã®ã‚¤ãƒ™ãƒ³ãƒˆ(ãƒ¡ãƒƒã‚»ãƒ¼ã‚¸)ã‚’å‡¦ç†ã™ã‚‹
-			// PeekMessageã§ã‚¤ãƒ™ãƒ³ãƒˆã‚’ã‚¢ãƒ—ãƒªå´ã§ç¢ºèªã—ã«è¡Œã
-			// éã‚²ãƒ¼ãƒ ã‚¢ãƒ—ãƒªã§ã¯GetMessageé–¢æ•°ã‚’ä½¿ã†ã‘ã©è©³ç´°ã¯ã‚«ãƒƒãƒˆï¼
-			if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
-				TranslateMessage(&msg);
-				// ã‚¦ã‚£ãƒ³ãƒ‰ã‚¦ãƒ—ãƒ­ã‚·ãƒ¼ã‚¸ãƒ£ã«ãƒ¡ãƒƒã‚»ãƒ¼ã‚¸ã‚’é€ã‚‹
-				DispatchMessage(&msg);
-			}
-			else {
+		wc.hIconSm = LoadIcon(hInstance, IDI_APPLICATION);
+#pragma endregion
+		if (!RegisterClassExW(&wc)) { throw std::runtime_error("RegisterClassExW Failed."); }
+#pragma region ƒEƒBƒ“ƒhƒEì¬
+		HWND hWnd = CreateWindowExW(
+			0,
+			c_szClassName,
+			c_szWinsowTitle,
+			wStyle,
+			CW_USEDEFAULT,
+			CW_USEDEFAULT,
+			windowWidth,
+			windowHeight,
+			nullptr, nullptr,
+			hInstance,
+			nullptr
+		);
+#pragma endregion
+		if (hWnd == nullptr) { throw std::runtime_error("CreateWindowExW Failed."); }
+		return hWnd;
+	}
+#pragma endregion
 
-			}
-		}		//COMé–‹æ”¾		CoUninitialize();		return static_cast<int>(msg.wParam);	}}//Win namespace
+}//namespace
+
+
+
+//ƒGƒ“ƒgƒŠ[ƒ|ƒCƒ“ƒg
+int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
+	_In_ LPWSTR lpCmdLine, _In_ int nCmdShow) {
+	//•sg—p‚Èˆø”‚ğƒRƒ“ƒpƒCƒ‰‚É“`‚¦‚ÄWarning‚ğ—}§‚·‚é
+	UNREFERENCED_PARAMETER(hPrevInstance);
+	UNREFERENCED_PARAMETER(lpCmdLine);
+#pragma region ƒƒ‚ƒŠƒŠ[ƒN
+#if _DEBUG
+	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
+#endif
+#pragma endregion
+
+	return 0;
+}

@@ -20,7 +20,7 @@
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
-    <ProjectGuid>{D0C71351-D9D2-4091-B2B5-F840188F3DC2}</ProjectGuid>
+    <ProjectGuid>{0827A402-B09F-4770-8750-A8BCD2D24B8B}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>My00HelloD3D12</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>

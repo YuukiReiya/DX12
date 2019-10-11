@@ -1,49 +1,9 @@
-// プラットフォーム系
-#include <SDKDDKVer.h>
 //MEMO:授業
-#pragma region マクロ
-#define WIN32_LEAN_AND_MEAN
-// Windows.hから必要ない機能を止めるマクロ
-#define NOMINMAX
-#define NODRAWTEXT
-#define NOGDI
-#define NOBITMAP
-#define NOMCX
-#define NOSERVICE
-#define NOHELP
-#pragma endregion
-
-//MEMO:自己定義
-#pragma region マクロ
-
-#pragma endregion
-
 
 //ヘッダ
-#include <Windows.h>
+#include"Application.hpp"
 
-#pragma region メモリリーク
-#if _DEBUG||DEBUG
-#define _CRTDBG_MAP_ALLOC
-#include <crtdbg.h>
-#endif
-#pragma endregion
-
-#pragma region DX
-#include <wrl/client.h>
-#include <wrl/event.h>
-#pragma comment(lib,"runtimeobject.lib")
-#pragma endregion
-
-#pragma region C/C++
-#include <array>
-#include <cassert>
-#include <cstdint>
-#include <memory>
-#include <stdexcept>
-#include <vector>
-#pragma endregion
-
+//名前空間
 namespace {
 	constexpr wchar_t c_szWinsowTitle[] = L"00_HelloD3D12";
 	constexpr wchar_t c_szClassName[] = L"D3DTutorClassName";
@@ -104,8 +64,6 @@ namespace {
 
 }//namespace
 
-
-
 //エントリーポイント
 int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
 	_In_ LPWSTR lpCmdLine, _In_ int nCmdShow) {
@@ -113,10 +71,47 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
 	UNREFERENCED_PARAMETER(hPrevInstance);
 	UNREFERENCED_PARAMETER(lpCmdLine);
 #pragma region メモリリーク
-#if _DEBUG
+#if _DEBUG||DEBUG
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 #endif
 #pragma endregion
-
-	return 0;
+#pragma region セットアップ
+	//DPIが違う環境への対応
+	SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+	//COM
+	Microsoft::WRL::Wrappers::RoInitializeWrapper initializer(RO_INIT_MULTITHREADED);
+	if (FAILED(initializer)) { return -1; }
+	//ウィンドウ
+	RECT rc = { 0,0,static_cast<LONG>(c_WindowWidth),static_cast<LONG>(c_WindowWidth) };	DWORD wStyle = WS_OVERLAPPEDWINDOW & ~WS_THICKFRAME;	AdjustWindowRect(&rc, wStyle, FALSE);
+	auto hWnd = CreateHWND(hInstance, wStyle, (rc.right - rc.left), (rc.bottom - rc.top));
+	//クライアント領域取得
+	GetClientRect(hWnd, &rc);
+	//アプリケーション
+	auto app = std::make_unique<dxapp::Application>();
+	app->Setup(hWnd, (rc.right - rc.left), (rc.bottom - rc.top));
+#pragma endregion
+	//ウィンドウの表示
+	ShowWindow(hWnd, nCmdShow);
+#pragma region メインループ
+	MSG msg{};
+	while (WM_QUIT != msg.message)
+	{
+		if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
+			TranslateMessage(&msg);
+			//ウィンドウプロシージャにメッセージ送信
+			DispatchMessage(&msg);
+		}
+		else {
+			//アプリケーション処理
+			app->Execute();
+		}
+	}
+#pragma endregion
+#pragma region メモリの明示的開放
+	//APP
+	app.reset();
+	//COM
+	CoUninitialize();
+#pragma endregion
+	return static_cast<int>(msg.wParam);
 }

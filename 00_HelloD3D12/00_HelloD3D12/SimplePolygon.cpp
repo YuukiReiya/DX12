@@ -17,6 +17,33 @@ void dxapp::SimplePolygon::Setup(ID3D12Device* device)
 	//	三角ポリゴン生成
 	MakeTriangle();
 
+	//追加で三角形を生成
+	{
+		constexpr int c_ExtensionContentsSize = 100;
+		m_vPolygonVertices.reserve(c_ExtensionContentsSize);
+		m_vPolygonIndices.reserve(c_ExtensionContentsSize);
+		DirectX::XMFLOAT3 p{ -0.5f,-0.5f,0 }, c{};
+		for (size_t i = 0; i < 10; i++)
+		{
+			//座標
+			p.x = p.y += 0.1f;
+			p.z += 0.1f;
+			//色
+			c.x = c.y = c.z += 0.1f;
+			//生成
+			AddTriangle(p, c);
+		}
+	}
+
+	//四角形
+	{
+		m_StartQuadVertex = static_cast<UINT>(m_vPolygonVertices.size());
+		m_StartQuadIndex = static_cast<UINT>(m_vPolygonIndices.size());
+		DirectX::XMFLOAT3 p{ 0.0f,0.0f,0.0f };
+		float scale{ 1.0f };
+		AddQuad(p, scale);
+	}
+
 	CreateBufferObject();
 	CreateRootSignature();
 	CreatePipelineState();
@@ -56,13 +83,50 @@ void dxapp::SimplePolygon::MakeCommandList(ID3D12GraphicsCommandList* commandLis
 	// DrawIndexedInstancedは名前のとおり、インデクスを使って描画するコマンド
 // Instancedは同じものを繰り返し描画するときに使える
 // とりあえずここでは3角形しか設定しないので下記の値でよい
-	commandList->DrawIndexedInstanced(
-		3,  // 1回の描画に使うインデックスの数
-		1,  // 繰り返し数
-		0,  // インデクスバッファの何番目の要素から読み取り開始するか
-		0,  // 頂点バッファの何番目の要素から読み取り開始するか
-		0);  // 頂点バッファからデータを読み取るときに、インデックスに加算する値
+	//commandList->DrawIndexedInstanced(
+	//	3,  // 1回の描画に使うインデックスの数
+	//	1,  // 繰り返し数
+	//	0,  // インデクスバッファの何番目の要素から読み取り開始するか
+	//	0,  // 頂点バッファの何番目の要素から読み取り開始するか
+	//	0);  // 頂点バッファからデータを読み取るときに、インデックスに加算する値
 
+	// 頂点数 / 3 で三角ポリゴンの数を計算
+	const auto size = m_vPolygonVertices.size() / 3;
+	for (size_t i = 0; i < size; i++)
+	{
+		UINT offset = i * 3;
+
+		commandList->DrawIndexedInstanced(
+			3,//1回の描画に使うインデックスの数
+			1,//繰り返し回数
+			offset,//インデックスバッファの読み出し位置指定
+			offset,//頂点バッファの読み出し位置指定
+			0
+		);
+
+		// よくよく考えると3角形の頂点はそれぞれ固有の情報(座標とかね)
+		// しかしインデクスはどの三角形でも共通
+		// なので今回のサンプルではインデクス配列を増やさず使いまわすこともできる(やってみよう)
+		// 今後モデル描画なども考えてこのようにしてみた
+	}
+	//四角形描画用コード
+	{
+		auto size = m_vPolygonVertices.size() - m_StartQuadVertex;
+		if (size < 4) { return; }//四角形がなかった
+		size /= 4;
+		for (size_t i = 0; i < size; i++)
+		{
+			int iOffset = i * 6 + m_StartQuadIndex;
+			int vOffset = i * 4 + m_StartQuadVertex;
+			commandList->DrawIndexedInstanced(
+				6,//1回の描画に使うインデックスの数
+				1,//繰り返し数S
+				iOffset,
+				vOffset,
+				0
+			);
+		}
+	}
 }
 
 void dxapp::SimplePolygon::MakeTriangle()
@@ -83,6 +147,77 @@ void dxapp::SimplePolygon::MakeTriangle()
 	//   ／      ＼
 	// 2ーーーーーー1
 	m_vPolygonIndices = { 0, 1, 2 };
+}
+
+void dxapp::SimplePolygon::AddTriangle(const DirectX::XMFLOAT3 pos, const DirectX::XMFLOAT3 cr)
+{
+	//三角ポリゴン構成用頂点 = ３頂点
+	VertexPositionColor vertices[]
+	{
+		//0番目
+		{
+			//座標
+			{0.0f + pos.x,0.5f + pos.y,pos.z},
+			//色
+			{1.0f * cr.x,0.0f,0.0f,1.0f}
+		},
+		{
+			//座標
+			{0.5f + pos.x,-0.5f + pos.y,pos.z},
+			//色
+			{0.0f,1.0f * cr.y,0.0f,1.0f}
+		},
+		{
+			//座標
+			{-0.5f + pos.x,-0.5f + pos.y,pos.z},
+			//色
+			{0.0f,0.0f ,1.0f * cr.x,1.0f}
+		},
+	};
+	std::uint32_t indices[] = { 0,1,2 };
+	//ポリゴンの頂点配列に追加
+	std::copy(std::begin(vertices), std::end(vertices), std::back_inserter(m_vPolygonVertices));
+	//	ポリゴンのインデックス配列に追加
+	std::copy(std::begin(indices), std::end(indices), std::back_inserter(m_vPolygonIndices));
+}
+
+void dxapp::SimplePolygon::AddQuad(const DirectX::XMFLOAT3 pos, const float scale)
+{
+	// 0ーー1   4角形は4つの頂点をつかってつくる。
+	 // |    |   あれ？3角形を組み合わせるから6頂点いるのでは・・・？
+	// 2ーー3
+	float point{ 0.5f * scale };
+	VertexPositionColor vertices[]{
+		// 0番
+		{{-point + pos.x, point + pos.y, pos.z}, {1.f, 0.f, 0.f, 1.f}},
+		// 1番
+		{{point + pos.x, point + pos.y, 0.f + pos.z}, {0.f, 1.f, 0.f, 1.f}},
+		// 2番
+		{{-point + pos.x, -point + pos.y, 0.f + pos.z}, {0.f, 0.f, 1.f, 1.f}},
+		// 3番
+		{{point + pos.x, -point + pos.y, 0.f + pos.z}, {1.f, 1.f, 1.f, 1.f}},
+	};
+
+	// 4頂点だがインデクスをつかって2ポリゴンを作る
+	// 0ーー1         1
+	// | ／   +    ／ |
+	// 2         2ーー3
+	//     ！合体！
+	//     0ーー1   4頂点で2ポリゴンができた
+	//     | ／ |
+	//     2ーー3
+
+	 // なおDirectXはポリゴンのインデクスは
+	// ポリゴン正面からみて左回りで頂点を結ぶのが基本
+	std::uint32_t indices[] = { 0, 1, 2, 1, 3, 2 };
+
+	// polygonVertecies_の最後尾にvertexの内容をコピー
+	std::copy(std::begin(vertices), std::end(vertices),
+		std::back_inserter(m_vPolygonVertices));
+
+	// polygonVertecies_の最後尾にvertexの内容をコピー
+	std::copy(std::begin(indices), std::end(indices),
+		std::back_inserter(m_vPolygonIndices));
 }
 
 void dxapp::SimplePolygon::CreateShader(const std::wstring& fileName, const std::wstring& profile, Microsoft::WRL::ComPtr<ID3DBlob>& blob)

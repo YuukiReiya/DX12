@@ -19,7 +19,22 @@ namespace dxapp
 		*/
 		void MakeCommandList(ID3D12GraphicsCommandList* commandList);
 	private:
+		/*!
+			@brief	三角ポリゴンの頂点/インデックスデータ準備
+		*/
 		void MakeTriangle();
+		/*!
+			@brief			基準の三角形描画位置に対してFLOAT3の1:x,2:y,3:zに対する値を加えリストに追加
+			@param[in]	座標
+			@param[in] 計算済みカラー情報
+		*/
+		void AddTriangle(const DirectX::XMFLOAT3 pos, const DirectX::XMFLOAT3 cr);
+
+		/*!
+			@brief	各配列に四角形情報を加える
+		*/
+		void AddQuad(const DirectX::XMFLOAT3 pos, const float scale);
+
 		void CreateShader(const std::wstring& fileName, const std::wstring& profile, Microsoft::WRL::ComPtr<ID3DBlob>& blob);
 		/*!
 			@brief	頂点/インデックスバッファを作成し、VRAMにコピー
@@ -52,6 +67,10 @@ namespace dxapp
 			@brief	インデックス配列
 		*/
 		std::vector<std::uint32_t>m_vPolygonIndices{};
+
+		UINT m_StartQuadVertex{};
+		UINT m_StartQuadIndex{};
+
 #pragma region バッファ
 		Microsoft::WRL::ComPtr<ID3D12Resource1>m_pVertexBuffer{};//頂点
 		Microsoft::WRL::ComPtr<ID3D12Resource1>m_pIndexBuffer{};//インデックス

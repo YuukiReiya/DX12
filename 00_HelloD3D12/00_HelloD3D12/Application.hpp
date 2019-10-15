@@ -6,6 +6,8 @@ namespace DX12 {
 //アプリケーションクラスの宣言
 namespace dxapp
 {
+	class SimplePolygon;
+
 	class Application
 	{
 	public:
@@ -18,7 +20,7 @@ namespace dxapp
 			@brief	初期化
 		*/
 		void Setup(HWND hWnd, std::uint32_t width, std::uint32_t height);
-		
+
 		/*
 			@brief	メイン処理
 		*/
@@ -55,5 +57,11 @@ namespace dxapp
 			@brief	デバイス
 		*/
 		std::unique_ptr<DX12::Device>m_pDevice;
+
+		/*!
+			@var	m_pSimplePolygon
+			@brief	シンプルポリゴン描画サンプルクラス
+		*/
+		std::unique_ptr<SimplePolygon>m_pSimplePolygon;
 	};
 }	//namespace

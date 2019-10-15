@@ -63,4 +63,18 @@
 #include <memory>
 #include <stdexcept>
 #include <vector>
+#include <fstream>
+#pragma endregion
+
+#pragma region C++17
+// C++17から使えるファイルシステム
+// コンパイラをc++17にするとexperimentalをとっても使える
+//#include <experimental/filesystem>
+//あるとエラーになる
+#include <filesystem>
+#pragma endregion
+
+#pragma region シェーダー
+#include <dxcapi.h>
+#pragma comment(lib, "dxcompiler.lib")
 #pragma endregion

@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "Application.hpp"
 #include "Device.hpp"
+#include "SimplePolygon.hpp"
 
 dxapp::Application::Application() {}
 
@@ -14,6 +15,8 @@ void dxapp::Application::Setup(HWND hWnd, std::uint32_t width, std::uint32_t hei
 	m_hWnd = hWnd;
 	m_pDevice = std::make_unique<DX12::Device>();
 	m_pDevice->Setup(hWnd, width, height);
+	m_pSimplePolygon = std::make_unique<SimplePolygon>();
+	m_pSimplePolygon->Setup(m_pDevice->GetDevice());
 }
 
 void dxapp::Application::Execute()
@@ -36,7 +39,7 @@ void dxapp::Application::Render()
 	//•`‰æˆ—
 	m_pDevice->PrepareRendering();
 	ClearRTV();
-
+	m_pSimplePolygon->MakeCommandList(m_pDevice->GetGraphicsCommandList());
 	//•`‰æXV–½—ß
 	m_pDevice->Present();
 }

@@ -15,3 +15,19 @@ struct VSInput {
 // 変数の役割を指示する役割がある。
 // シェーダの外やり取りする変数には指定する必要があります。
 // とりあえず今は「へー」と思っておいてよい
+
+// 頂点シェーダの入力
+struct VSInputPCNT {
+	float4 pos : POSITION;
+	float4 color : COLOR;
+	float3 normal : NORMAL;
+	float2 uv : TEXCOORD;
+};
+
+// 頂点シェーダから出力
+struct VSOutputPCNT {
+	float4 pos : SV_POSITION;
+	float4 color : COLOR;
+	float3 normal : NORMAL;
+	float2 uv : TEXCOORD;
+};

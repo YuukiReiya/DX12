@@ -27,6 +27,11 @@
     <ClInclude Include="External\d3dx12.h">
       <Filter>External</Filter>
     </ClInclude>
+    <ClInclude Include="BufferObject.hpp" />
+    <ClInclude Include="GeometoryMesh.hpp" />
+    <ClInclude Include="Singleton.hpp" />
+    <ClInclude Include="TextureManager.hpp" />
+    <ClInclude Include="BasicShader.hpp" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="directx.ico">
@@ -42,6 +47,11 @@
     <ClCompile Include="External\WICTextureLoader12.cpp">
       <Filter>External</Filter>
     </ClCompile>
+    <ClCompile Include="BufferObject.cpp" />
+    <ClCompile Include="GeometoryMesh.cpp" />
+    <ClCompile Include="Singleton.cpp" />
+    <ClCompile Include="TextureManager.cpp" />
+    <ClCompile Include="BasicShader.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="resource.rc">
@@ -57,5 +67,13 @@
     <None Include="Shaders\ShaderCommon.hlsli">
       <Filter>Shaders</Filter>
     </None>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="Shaders\BasicVS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\BasicPS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

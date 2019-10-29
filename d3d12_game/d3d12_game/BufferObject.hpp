@@ -5,7 +5,7 @@ namespace dxapp{
 		/*!
 			@brief	頂点バッファ
 		*/
-		VertexBuffer,
+		VertexBuffer = 0,
 		/*!
 			@brief	インデックスバッファ
 		*/
@@ -44,7 +44,7 @@ namespace dxapp{
 		/*!
 			@brief	アンマップ
 		*/
-		void UnMap();
+		void Unmap();
 		void Update(const void* data, std::size_t size, std::size_t offset = 0);
 		
 		/*!

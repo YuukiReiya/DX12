@@ -8,3 +8,8 @@ test/.vs/
 00_HelloD3D12/Debug/
 00_HelloD3D12/00_HelloD3D12/x64/
 00_HelloD3D12/x64/
+*/.vs/
+*/bin/
+*/obj/
+00_HelloD3D12/00_HelloD3D12/dxcompiler.dll
+00_HelloD3D12/00_HelloD3D12/dxil.dll

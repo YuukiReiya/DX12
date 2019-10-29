@@ -5,7 +5,7 @@ namespace dxapp {
 
 // 前方宣言
 class Device;
-//class SimplePolygon;
+class SimplePolygon;
 
 #pragma region 追加
 class GeometoryMesh;

@@ -26,6 +26,9 @@ namespace dxapp{
 		BufferObject(const BufferObject&) = delete;
 		BufferObject& operator=(const BufferObject&) = delete;
 
+		/*!
+			@brief	デフォルトコンストラクタ
+		*/
 		BufferObject() = default;
 
 		/*!
@@ -62,7 +65,7 @@ namespace dxapp{
 		*/
 		CD3DX12_HEAP_PROPERTIES m_HeapProp;
 		CD3DX12_RESOURCE_DESC m_ResourceDesc;
-		std::size_t m_BufferSize;
+		std::size_t m_BufferSize{};
 		Microsoft::WRL::ComPtr<ID3D12Resource1>m_Resource;
 	};
 

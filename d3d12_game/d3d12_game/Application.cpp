@@ -190,7 +190,16 @@ void Application::Run() {
   Render();
 }
 
-void Application::Update(const DX::StepTimer& timer) {}
+void Application::Update(const DX::StepTimer& timer) 
+{
+	// カメラ更新
+	{
+		camera_.CalculateViewMatrix();
+		camera_.CalculateProjMatrix();
+		camera_.viewProj = camera_.view * camera_.proj;
+	}
+	UpdateCube();
+}
 
 void Application::Render() {
   // ここで描画処理をする
@@ -237,7 +246,7 @@ void Application::ClearRenderTarget() {
 }
 void Application::UpdateCube()
 {
-	// 移動・回転・拡縮がベクトルになっていると人間としては扱いやすい
+  // 移動・回転・拡縮がベクトルになっていると人間としては扱いやすい
   // しかしベクトルのままだとレンダリング時に扱いずらい.。
   // 平行移動(Translate),回転(Rotation),スケール(Scale)をばらばらに送ると
   // シェーダ内で全頂点ごとにそれぞれを合成する計算をすることになる。

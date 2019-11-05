@@ -25,6 +25,7 @@ void DescriptorHeapStackAllocator::Initialize(ID3D12Device* device,
 std::uint32_t DescriptorHeapStackAllocator::pop() {
   assert(pointer_ > 0);
 
+  //ココ先に引いちゃダメじゃね？
   --pointer_;
   return indices_[pointer_];
 }
@@ -32,6 +33,7 @@ std::uint32_t DescriptorHeapStackAllocator::pop() {
 void DescriptorHeapStackAllocator::push(std::uint32_t index) {
   assert(pointer_ < stackSize_);
 
+  //ココ先に足しちゃダメじゃね？
   ++pointer_;
   indices_[pointer_] = index;
 }

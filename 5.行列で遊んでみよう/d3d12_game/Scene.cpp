@@ -155,16 +155,7 @@ void Scene::Impl::Initialize(Device* device) {
   // 必要そうなテクスチャを読もう
   Singleton<TextureManager>::instance().LoadWICTextureFromFile(
       device, L"Assets/cat.png", "cat");
-
-  Singleton<TextureManager>::instance().LoadWICTextureFromFile(
-      device, L"Assets/earth.png", "earth");
-
-  Singleton<TextureManager>::instance().LoadWICTextureFromFile(
-      device, L"Assets/moon.png", "moon");
-
-  Singleton<TextureManager>::instance().LoadWICTextureFromFile(
-      device, L"Assets/sun.png", "sun");
-
+  
   CreateSamplerHeap(device);
   CreateCbvSrvHeap(device);
 
@@ -183,6 +174,11 @@ void Scene::Impl::Update(float deltaTime) {
 
   // マウスの右ボタン押してるとカメラ更新
   if (mouseState.rightButton) {
+
+	  //前後移動:Dolly
+	  //直角移動:Truck
+	  //上下移動:Boom
+
     if (keyState.W) {
       camera_.Dolly(+3.0f * deltaTime);
     }
@@ -213,10 +209,52 @@ void Scene::Impl::Update(float deltaTime) {
     camera_.Pan(x);
     camera_.Tilt(y);
 
+	//カメラの更新を忘れずに!!
     camera_.UpdateViewMatrix();
 
   } else {
     // ネコちゃんがあるくよ
+	  auto& trans = texObjs_[0].trasnform;
+	  //移動量
+	  XMFLOAT3 velocity{0,0,0};
+	  if (keyState.W)
+	  {
+		  velocity.z+= +3.f * deltaTime;
+	  }
+	  if (keyState.S)
+	  {
+		  velocity.z += -3.f * deltaTime;
+	  }
+	  if (keyState.D)
+	  {
+		  trans.rot.y += XMConvertToRadians(+45 * deltaTime);
+	  }
+	  if (keyState.A)
+	  {
+		  trans.rot.y += XMConvertToRadians(-45 * deltaTime);
+	  }
+	  auto s = XMMatrixScaling(trans.sca.x, trans.sca.y, trans.sca.z);
+	  auto r = XMMatrixRotationY(trans.rot.y);
+	  auto t = XMMatrixTranslation(trans.pos.x,trans.pos.y,trans.pos.z);
+
+	  //SRT変換
+	  trans.world = s * r * t;
+
+#pragma region ラジオ移動変換
+	  auto addTrans = XMMatrixTranslation(velocity.x, velocity.y, velocity.z);
+	  trans.world = addTrans * r * trans.world;
+#if false
+	  XMFLOAT4X4 m;
+	  XMStoreFloat4x4(&m, trans.world);
+	  trans.pos.x = m._41;
+	  trans.pos.y = m._42;
+	  trans.pos.z = m._43;
+#else
+	  trans.pos.x = trans.world.r[3].m128_f32[0];
+	  trans.pos.y = trans.world.r[3].m128_f32[1];
+	  trans.pos.z = trans.world.r[3].m128_f32[2];
+#endif // false
+#pragma endregion
   }
 
   // 白い箱オブジェクト更新（原点でY軸回転）
@@ -226,10 +264,14 @@ void Scene::Impl::Update(float deltaTime) {
 
     auto& trans = nonTexObjs_[0].trasnform;
     XMMATRIX s = XMMatrixScaling(trans.sca.x, trans.sca.y, trans.sca.z);
+	//静的で許してくだしぃ
+	static float initOffset = 3.f;
     auto r = XMMatrixRotationY(trans.rot.y);
-    auto t = XMMatrixTranslation(0, 0, 0);
-    trans.world = t * r;
+	auto t = XMMatrixTranslation(initOffset+trans.pos.x, trans.pos.y, trans.pos.z);
+    trans.world = t * r * texObjs_[0].trasnform.world;
   }
+
+  //メッシュ
 }
 
 void Scene::Impl::Render(Device* device) {
@@ -410,7 +452,7 @@ void Scene::Impl::CreateTexObj(Device* device) {
   auto bufferCount = device->backBufferSize();
   auto cbSize = sizeof(BasicShaderCB);
 
-  // CBVを作るよ
+  // CBVを作るよ(コンスタントバッファビュー)
   texObjs_.resize(static_cast<int>(TexObjType::Size));
   InitializeObject(texObjs_, device, &texDescHeap_, bufferCount, cbSize);
 

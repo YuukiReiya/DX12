@@ -116,6 +116,11 @@ class Scene::Impl {
   // テクスチャ張れるオブジェクト
   enum class TexObjType {
     Cat = 0,  // 猫ちゃん
+#pragma region 追記
+	RedCatSphere,
+	BlueCatSphere,
+	YellowCatSphere,
+#pragma endregion
     Size,
   };
   std::vector<RenderObject> texObjs_;
@@ -124,6 +129,10 @@ class Scene::Impl {
   void CreateNonTexObj(Device* device);
   enum class NonTexObjType {
     WhiteCube = 0,
+#pragma region 追記
+	Plane,
+#pragma endregion
+
     Size,
   };
   std::vector<RenderObject> nonTexObjs_;
@@ -133,6 +142,13 @@ class Scene::Impl {
   std::unique_ptr<GeometoryMesh> sunMesh_;
   std::unique_ptr<GeometoryMesh> floorMesh_;
   std::unique_ptr<GeometoryMesh> whiteCube_;
+
+#pragma region 追記
+  std::unique_ptr<GeometoryMesh>sphereRedMesh_;//赤い球
+  std::unique_ptr<GeometoryMesh>sphereBlueMesh_;//青い球
+  std::unique_ptr<GeometoryMesh>sphereYellowMesh_;//黄色い球
+  std::unique_ptr<GeometoryMesh>planeMesh_;//板ポリ
+#pragma endregion
 
   // カメラ
   FpsCamera camera_;
@@ -151,6 +167,19 @@ void Scene::Impl::Initialize(Device* device) {
                                         {0.5f, 0.5f, 0.5f, 1.0f});
 
   whiteCube_ = GeometoryMesh::CreateCube(device->device());
+
+#pragma region 追記
+  //赤い球
+  sphereRedMesh_ = GeometoryMesh::CreateSphere(device->device(), 0.5f, 16U, 16U, {1.0f,0,0,1.0f});
+  //青い球
+  sphereBlueMesh_ = GeometoryMesh::CreateSphere(device->device(), 0.4f, 16U, 16U, { 0,0,1.0f,1.0f });
+  //黄色い球
+  sphereYellowMesh_ = GeometoryMesh::CreateSphere(device->device(), 0.3f, 16U, 16U, { 1,1,0,1.0f });
+
+  //動かない板ポリでも出してみる？
+  planeMesh_ = GeometoryMesh::CreateBox(device->device(), 1.0f, 0.0f, 1.0f, { 0,0,0,1 });
+#pragma endregion
+
 
   // 必要そうなテクスチャを読もう
   Singleton<TextureManager>::instance().LoadWICTextureFromFile(
@@ -233,6 +262,32 @@ void Scene::Impl::Update(float deltaTime) {
 	  {
 		  trans.rot.y += XMConvertToRadians(-45 * deltaTime);
 	  }
+
+#pragma region 猫ジャンプ
+	  //sinを用いた簡単なジャンプ処理
+	  {
+		  //変数
+		  //※静的でゴメンよ!!
+		  static bool isJump = false;
+		  static size_t jumpCount = 0;
+		  const size_t c_JumpFrame = 30;
+		  const float c_JumpPower = 1.0f;
+		  if (keyState.Space && !isJump)
+		  {
+			  isJump = true;
+		  }
+		  if (isJump)
+		  {
+			  jumpCount++;
+			  if (jumpCount >= c_JumpFrame) {
+				  jumpCount = 0;
+				  isJump = false;
+			  }
+			  trans.pos.y = sin(g_XMPi[0] / c_JumpFrame * jumpCount)*c_JumpPower;
+		  }
+	  }
+#pragma endregion
+
 	  auto s = XMMatrixScaling(trans.sca.x, trans.sca.y, trans.sca.z);
 	  auto r = XMMatrixRotationY(trans.rot.y);
 	  auto t = XMMatrixTranslation(trans.pos.x,trans.pos.y,trans.pos.z);
@@ -271,7 +326,75 @@ void Scene::Impl::Update(float deltaTime) {
     trans.world = t * r * texObjs_[0].trasnform.world;
   }
 
-  //メッシュ
+#pragma region 追加メッシュ
+  //画面中心に自転する赤い球(猫のtexture)
+  {
+	  auto& trans = texObjs_[static_cast<int>(TexObjType::RedCatSphere)].trasnform;
+	  const float value = 0.1f;
+	  XMFLOAT2 velocity{};
+	  //入力
+	  if (keyState.Up) { velocity.y += +value; }
+	  if (keyState.Down) { velocity.y += -value; }
+	  if (keyState.Left) { velocity.x += -value; }
+	  if (keyState.Right) { velocity.x += +value; }
+	  trans.rot.y += static_cast<float>(DirectX::XM_PIDIV2* deltaTime);
+	  auto s = XMMatrixScaling(trans.sca.x, trans.sca.y, trans.sca.z);
+	  auto r = XMMatrixRotationRollPitchYaw(trans.rot.x, trans.rot.y, trans.rot.z);//普通にRPYの行列求める
+	  auto t = XMMatrixTranslation(trans.pos.x, trans.pos.y, trans.pos.z);
+	  auto add = XMMatrixTranslation(velocity.x, velocity.y, 0);
+	  trans.world = s * add * r * t;
+	  trans.pos.x += velocity.x;
+	  trans.pos.y += velocity.y;
+  }
+  //赤い球の周りを公転する青い球(猫のtexture)
+  {
+	  auto& trans = texObjs_[static_cast<int>(TexObjType::BlueCatSphere)].trasnform;
+	  auto& target = texObjs_[static_cast<int>(TexObjType::RedCatSphere)].trasnform;
+	  XMFLOAT3 velocity{};
+	  const auto offset = -4.0f;
+	  trans.rot.y += static_cast<float>(DirectX::XM_PIDIV2* deltaTime * 0.1f);
+	  auto s = XMMatrixScaling(trans.sca.x, trans.sca.y, trans.sca.z);
+	  auto r = XMMatrixRotationRollPitchYaw(trans.rot.x, trans.rot.y, trans.rot.z);//普通にRPYの行列求める
+	  auto t = XMMatrixTranslation(trans.pos.x + offset, trans.pos.y, trans.pos.z);
+	  trans.world = s * t * r * target.world;
+  }
+  //青い球の周りを自転する黄色い球(猫のtexture)
+  {
+	  auto& trans = texObjs_[static_cast<int>(TexObjType::YellowCatSphere)].trasnform;
+	  auto& target = texObjs_[static_cast<int>(TexObjType::BlueCatSphere)].trasnform;
+	  XMFLOAT3 velocity{};
+	  const auto offset = 2.0f;
+	  trans.rot.y += static_cast<float>(DirectX::XM_PIDIV2* deltaTime);
+	  auto s = XMMatrixScaling(trans.sca.x, trans.sca.y, trans.sca.z);
+	  auto r = XMMatrixRotationRollPitchYaw(trans.rot.x, trans.rot.y, trans.rot.z);//普通にRPYの行列求める
+	  auto t = XMMatrixTranslation(trans.pos.x + offset, trans.pos.y, trans.pos.z);
+	  trans.world = s * t * r * target.world;
+
+  }
+
+  //動かない板ポリ
+  {
+	  auto& trans = nonTexObjs_[static_cast<int>(NonTexObjType::Plane)].trasnform;
+	  XMFLOAT3 offset{ 0.0f, 1.0f, 1.0f };
+	  auto s = XMMatrixScaling(trans.sca.x, trans.sca.y, trans.sca.z);
+	  auto r = XMMatrixRotationRollPitchYaw(trans.rot.x, trans.rot.y, trans.rot.z);//普通にRPYの行列求める
+	  auto t = XMMatrixTranslation(trans.pos.x + offset.x, trans.pos.y + offset.y, trans.pos.z + offset.z);
+	  trans.world = s * r * t;
+  }
+#pragma endregion
+
+#pragma region 追加コード
+  //左シフトキーでメッシュの非表示(猫、公転キューブ)
+  //※大きさ変えただけだからキー入力は受け付けるよ！
+  if (keyState.LeftShift)
+  {
+	  auto& catTrans = texObjs_[static_cast<int>(TexObjType::Cat)].trasnform;
+	  catTrans.world *= 0;
+	  auto& cubeTrans = nonTexObjs_[static_cast<int>(NonTexObjType::WhiteCube)].trasnform;
+	  cubeTrans.world *= 0;
+  }
+#pragma endregion
+
 }
 
 void Scene::Impl::Render(Device* device) {
@@ -467,6 +590,52 @@ void Scene::Impl::CreateTexObj(Device* device) {
     auto offset = index + srvPos;
     CreateSrv(device, tex.Get(), texDescHeap_.heapStart(), offset);
   }
+
+#pragma region 追記
+#if false
+  //今回は汚いけど、一個ずつ作る。汚いけど。。。
+  //赤い球(猫texture)
+  {
+	  type = static_cast<int>(TexObjType::RedCatSphere);
+	  texObjs_[type].mesh = sphereRedMesh_.get();
+	  for (auto index : texObjs_[type].heapIndices)
+	  {
+		  //めんどいのでテクスチャは猫使いまわしで勘弁してください<(_ _*)>
+		  CreateSrv(device, tex.Get(), texDescHeap_.heapStart(), (index + srvPos));
+	  }
+  }
+  //青い球(猫texture)
+  {
+	  type = static_cast<int>(TexObjType::BlueCatSphere);
+	  texObjs_[type].mesh = sphereBlueMesh_.get();
+	  for (auto index : texObjs_[type].heapIndices)
+	  {
+		  //めんどいのでテクスチャは猫使いまわしで勘弁してください<(_ _*)>
+		  CreateSrv(device, tex.Get(), texDescHeap_.heapStart(), (index + srvPos));
+	  }
+  }
+#else 
+  //似非テーブルで追加を楽にしてみた。。。
+  std::tuple<GeometoryMesh*,TexObjType,ID3D12Resource*> meshTable[] = {
+	  std::make_tuple(sphereRedMesh_.get(),TexObjType::RedCatSphere,tex.Get()),
+	  std::make_tuple(sphereBlueMesh_.get(),TexObjType::BlueCatSphere,tex.Get()),
+	  std::make_tuple(sphereYellowMesh_.get(),TexObjType::YellowCatSphere,tex.Get()),
+  };
+  //似非テーブルの配列サイズ
+  int length = sizeof(meshTable) / sizeof(std::tuple<GeometoryMesh*, TexObjType, ID3D12Resource*>);
+  for (int i = 0; i < length; ++i)
+  {
+	  auto it = meshTable[i];
+	  type = static_cast<int>(std::get<1>(it));
+	  texObjs_[type].mesh = std::get<0>(it);
+	  for (auto index : texObjs_[type].heapIndices)
+	  {
+		  CreateSrv(device, tex.Get(), texDescHeap_.heapStart(), (index + srvPos));
+	  }
+  }
+#endif
+#pragma endregion
+
 }
 
 void Scene::Impl::CreateNonTexObj(Device* device) {
@@ -479,6 +648,14 @@ void Scene::Impl::CreateNonTexObj(Device* device) {
 
   auto type = static_cast<int>(NonTexObjType::WhiteCube);
   nonTexObjs_[type].mesh = whiteCube_.get();
+
+#pragma region 追記
+  //板ポリ
+  {
+	  type = static_cast<int>(NonTexObjType::Plane);
+	  nonTexObjs_[type].mesh = planeMesh_.get();
+  }
+#pragma endregion
 }
 
 //-------------------------------------------------------------------

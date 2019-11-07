@@ -26,15 +26,15 @@ std::uint32_t DescriptorHeapStackAllocator::pop() {
   assert(pointer_ > 0);
 
   //ココ先に引いちゃダメじゃね？
-  --pointer_;
-  return indices_[pointer_];
+  //--pointer_;
+  return indices_[pointer_--];
 }
 
 void DescriptorHeapStackAllocator::push(std::uint32_t index) {
   assert(pointer_ < stackSize_);
 
   //ココ先に足しちゃダメじゃね？
-  ++pointer_;
-  indices_[pointer_] = index;
+  //++pointer_;
+  indices_[pointer_++] = index;
 }
 }  // namespace dxapp

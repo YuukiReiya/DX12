@@ -460,6 +460,19 @@ void Scene::Impl::Update(float deltaTime) {
   }
 #pragma endregion
 
+#pragma region 課題4
+  //	ヒントじゃなくて答え出てるんですが。。。
+  //	モデルは課題3で表示したやつ
+  {
+	  auto& texTrans = renderObjs_[3]->transform.texTrans;
+	  static float scrollY;
+	  scrollY += deltaTime;
+	  auto y = XMMatrixTranslation(0, scrollY, 0.f);
+	  texTrans = y;
+  }
+#pragma endregion
+
+
 }
 
 void Scene::Impl::Render(Device* device) {

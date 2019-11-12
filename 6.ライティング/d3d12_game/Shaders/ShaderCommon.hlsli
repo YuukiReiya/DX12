@@ -31,3 +31,26 @@ struct VSOutputPCNT {
   float3 normal : NORMAL;
   float2 uv : TEXCOORD;
 };
+
+// ライティング頂点シェーダの出力
+struct VSOutputLitTex {
+	float4 posVPW : SV_POSITION;  // 最終的な頂点座標
+	float3 posW : POSITION;       // ワールド変換だけした頂点
+	float3 normal : NORMAL;       // ワールド変換した法線
+	float2 uv : TEXCOORD;         // テクスチャ座標
+};
+
+// ディレクショナルライト3個まで対応
+#define NUM_DIR_LIGHT 3
+
+// ライト構造体（ディレクショナルだけ対応）
+// 定数バッファは16byte単位でメモリを扱う。
+// floatは4byte = float3なら12byteになる。
+// そのためfloat3のあとにfloat3を並べると、16byteをこえメモリの境界を
+// またいでしまうので、そのようなときは詰め物(padding)で並びを整えておく
+struct Light {
+	float3 strength;   // ライト色・明るさ
+	float pad1;
+	float3 direction;  // ディレクショナルライトの向き
+	float pad2;
+};

@@ -5,8 +5,112 @@
 #include "Device.hpp"
 #include "GeometoryMesh.hpp"
 #include "TextureManager.hpp"
-
+#pragma region add_1112
+#include "LightingShader.hpp"
+#pragma endregion
 namespace {
+#pragma region add_1112
+	/*
+	 * @brief モデルの質感を表すデータ
+	 */
+	class Material {
+	public:
+		struct MaterialParameter {
+			DirectX::XMFLOAT4 diffuseAlbedo{ 1, 1, 1, 1 };
+			DirectX::XMFLOAT3 fresnel{ 0.5f, 0.5f, 0.5f };
+			float roughness{ 0.1f };
+			int useTexture = 0;
+		};
+
+		/*
+		 * @brief コンストラクタ
+		 */
+		Material() = default;
+		Material(const MaterialParameter& param) : material_(param) {}
+
+		/*
+		 * @brief 初期化
+		 */
+		void Initialize(dxapp::Device* device) {
+			// マテリアルは変化しなさそうだけど、、、
+			// 点滅したりテクスチャがスクロールするので一応ダブルバッファ化
+			matCb_.resize(device->backBufferSize());
+			for (auto& cb : matCb_) {
+				cb = std::make_unique<dxapp::BufferObject>();
+				cb->Initialize(device->device(), dxapp::BufferObjectType::ConstantBuffer,
+					sizeof(material_));
+			}
+		}
+
+		void Update(std::uint32_t index) {
+			matCb_[index]->Update(&material_, sizeof(MaterialParameter));
+		}
+
+		// 値の範囲チェックとかを本当はするんだよ
+
+		/*
+		 * @brief 拡散反射光の設定
+		 */
+		void SetDiffuseAlbedo(DirectX::XMFLOAT4 diffuseAlbedo) {
+			material_.diffuseAlbedo = diffuseAlbedo;
+		}
+
+		/*
+		 * @brief 鏡面反射光の設定
+		 */
+		void SetFresnel(DirectX::XMFLOAT3 fresnel) { material_.fresnel = fresnel; }
+
+		/*
+		 * @brief 面の粗さ設定
+		 */
+		void SetRoughness(float roughness) { material_.roughness = roughness; }
+
+		/*
+		 * @brief テクスチャの設定
+		 */
+		void SetTexture(ID3D12DescriptorHeap* heap, std::uint32_t offset) {
+			srvHeap_ = heap;
+			srvOffset_ = offset;
+			material_.useTexture = 1;
+		}
+
+		/*
+		 * @brief テクスチャの解除
+		 */
+		void ClearTexture() {
+			srvHeap_ = nullptr;
+			srvOffset_ = 0;
+			material_.useTexture = 0;
+		}
+
+		/*
+		 * @brief テクスチャのヒープとオフセット位置を取得
+		 */
+		void textureDescHeap(ID3D12DescriptorHeap** heap, std::uint32_t* offset) {
+			*heap = srvHeap_;
+			*offset = srvOffset_;
+		}
+
+		/*
+		 * @brief テクスチャの割り当て確認
+		 */
+		bool HasTexture() const { return (material_.useTexture != 0); }
+
+		/*
+		 * @brief このマテリアルの定数バッファを取得
+		 */
+		D3D12_GPU_VIRTUAL_ADDRESS materialCb(std::uint32_t index) const {
+			return matCb_[index]->resource()->GetGPUVirtualAddress();
+		}
+
+	private:
+		MaterialParameter material_;  //! 定数バッファに書き込む値
+		std::vector<std::unique_ptr<dxapp::BufferObject>>
+			matCb_{};  //! MaterialParameterの定数バッファ領域
+		ID3D12DescriptorHeap* srvHeap_{ nullptr };  //! SRVデスクリプタヒープ
+		std::uint32_t srvOffset_{ 0 };              //! アドレスオフセット
+	};
+#pragma endregion
 /*
  * @brief ワールド行列を作成するためのデータ
  */
@@ -29,6 +133,10 @@ struct RenderObject {
 
   // 下のデータはほかのオブジェクトと共有できる情報なのでポインタでもらっておく
   dxapp::GeometoryMesh* mesh;  //! メッシュ
+
+#pragma region add_1112
+  Material* material;  //! マテリアル
+#pragma endregion
 };
 }  // namespace
 
@@ -88,6 +196,17 @@ class Scene::Impl {
   void CreateBufferView(std::unique_ptr<BufferObject>& buffer, Device* device,
                         D3D12_CPU_DESCRIPTOR_HANDLE heapStart, int offset);
 
+#pragma region add_1112
+  /*
+   * @brief テクスチャありのRenderObject生成
+   */
+  void CreateRenderObj(Device* device);
+
+  /*
+   * @brief テクスチャありのRenderObject生成
+   */
+  void CreateMaterial(Device* device);
+#pragma endregion
   /*
    * デスクリプタヒープの管理周りは、いろいろと間違っていた！
    * すまん！！
@@ -101,6 +220,25 @@ class Scene::Impl {
 
   // カメラ
   FpsCamera camera_;
+#pragma region add_1112
+  // シェーダー
+  std::unique_ptr<LightingShader> lightingShader_;
+
+
+  // メッシュデータ
+  std::unique_ptr<GeometoryMesh> teapotMesh_;
+
+  // 描画オブジェクト
+  std::vector<std::unique_ptr<RenderObject>> renderObjs_;
+
+  // シーンパラメータ
+  // このサンプルでは1つあればOK
+  LightingShader::SceneParam sceneParam_;
+  std::vector<std::unique_ptr<BufferObject>> sceneParamCb_;
+
+  // マテリアルは使いまわせるので連想配列に入れて管理
+  std::unordered_map<std::string, std::unique_ptr<Material>> materials_;
+#pragma endregion
 };
 
 Scene::Impl::Impl(){};
@@ -130,6 +268,60 @@ void Scene::Impl::Initialize(Device* device) {
 
     Singleton<TextureManager>::instance().LoadWICTextureFromFile(
         device, L"Assets/uv_checker.png", "uv_checker");
+  }
+
+  // シェーダー作成
+  lightingShader_ = std::make_unique<LightingShader>();
+  lightingShader_->Initialize(device);
+
+  // uv_checkerをダミーテクスチャを設定（uv_checkerはヒープ0にある）
+  lightingShader_->SetDammySrvDescriptorHeap(cbvSrvHeap_.Get(), 0);
+  // さらについでにデフォルトサンプラも入れておきますね
+  lightingShader_->SetDefaultSamplerDescriptorHeap(samplerHeap_.Get(), 0);
+
+
+  // メッシュ作成
+  teapotMesh_ = GeometoryMesh::CreateTeapot(device->device());
+
+  // マテリアル作成
+  CreateMaterial(device);
+
+  // 描画オブジェクト作成
+  CreateRenderObj(device);
+
+  // ライトの設定
+  // ライトが3つあるのは3点照明を作りたいから
+  // 光源が1つだけだど蔭が強すぎるので補助ライトを2つおいてあげる
+  // 現実世界での照明方法ではあるがCGでも一般的
+  {
+	  // 環境光（最低限これくらいは明るい）
+	  sceneParam_.ambientLight = { 0.25f, 0.25f, 0.25f, 1.0f };
+
+	  // メインのライト（キーライトといいます）
+	  // 光の向き
+	  sceneParam_.lights[0].direction = { 0.57f, -0.57f, 0.57f };
+	  // メインなのでライトの明るさがほかのより強い
+	  sceneParam_.lights[0].strength = { 0.8f, 0.8f, 0.8f };
+
+	  // 補助ライト1（フィルライト）
+	  // キーライトの反対側において、キーライトの陰を弱くします
+	  sceneParam_.lights[1].direction = { -0.57f, -0.57f, 0.57f };
+	  // ライトはメインより暗くします
+	  sceneParam_.lights[1].strength = { 0.4f, 0.4f, 0.4f };
+
+	  // 補助ライト2（バックライト）
+	  // ほんとはオブジェクトの反対側において輪郭を浮き上がらせるためのライト
+	  // 動かすのが面倒なのでいまは固定
+	  sceneParam_.lights[2].direction = { 0.0f, -0.707f, -0.707f };
+	  // ライトは暗め
+	  sceneParam_.lights[2].strength = { 0.2f, 0.2f, 0.2f };
+
+	  // SceneParamの定数バッファを作成
+	  sceneParamCb_.resize(device->backBufferSize());
+	  for (auto& cb : sceneParamCb_) {
+		  CreateBufferObject(cb, device->device(),
+			  sizeof(LightingShader::SceneParam));
+	  }
   }
 }
 
@@ -170,10 +362,152 @@ void Scene::Impl::Update(float deltaTime) {
     camera_.Tilt(y);
   }
   camera_.UpdateViewMatrix();
+
+  // 今回はティーポットは回るだけ。動かしたい人は自分で追加してみよう
+  {
+	  auto& transform = renderObjs_[0]->transform;
+	  transform.rot.y += XMConvertToRadians(45.f * deltaTime);
+	  auto rotY = XMMatrixRotationY(transform.rot.y);
+
+	  // 0度の時にティーポットの先端がZ+を向くように回転補正
+	  auto fixRot = XMMatrixRotationY(XMConvertToRadians(180.f));
+
+	  transform.world = fixRot * rotY;
+  }
+#pragma region 追記
+  // 2個目
+  {
+	  auto& transform = renderObjs_[1]->transform;
+	  transform.rot.y += XMConvertToRadians(45.f * deltaTime);
+	  auto rotY = XMMatrixRotationY(transform.rot.y);
+
+	  // x = +2の位置
+	  auto trans = XMMatrixTranslation(2.f, 0.f, 0.f);
+	  // 0度の時にティーポットの先端がZ+を向くように回転補正
+	  auto fixRot = XMMatrixRotationY(XMConvertToRadians(180.f));
+
+	  transform.world = fixRot * rotY * trans;
+  }
+
+  // 3個目
+  {
+	  auto& transform = renderObjs_[2]->transform;
+	  transform.rot.y += XMConvertToRadians(45.f * deltaTime);
+	  auto rotY = XMMatrixRotationY(transform.rot.y);
+
+	  // x = -2の位置
+	  auto trans = XMMatrixTranslation(-2.f, 0.f, 0.f);
+	  // 0度の時にティーポットの先端がZ+を向くように回転補正
+	  auto fixRot = XMMatrixRotationY(XMConvertToRadians(180.f));
+
+	  transform.world = fixRot * rotY * trans;
+  }
+#pragma endregion
+
+#pragma region 課題2
+  if (keyState.L)
+  {
+	  // 1 初期状態(マジックナンバーで実装しないでほしかった。。。)
+	  if(keyState.D1)
+	  {
+		  sceneParam_.lights[0].direction = { 0.57f, -0.57f, 0.57f };
+		  sceneParam_.lights[0].strength = { 0.8f, 0.8f, 0.8f };
+		  sceneParam_.lights[1].direction = { -0.57f, -0.57f, 0.57f };
+		  sceneParam_.lights[1].strength = { 0.4f, 0.4f, 0.4f };
+		  sceneParam_.lights[2].direction = { 0.0f, -0.707f, -0.707f };
+		  sceneParam_.lights[2].strength = { 0.2f, 0.2f, 0.2f };
+	  }
+	  // 2
+	  if (keyState.D2)
+	  {
+		  constexpr XMFLOAT3 mainLightDir = { 1,1,1, };
+		  constexpr XMFLOAT3 fillLightDir = { 1,1,1, };
+		  constexpr XMFLOAT3 backLightDir = { 1,1,1, };
+		  constexpr float strength = 1.0f;
+		  sceneParam_.lights[0].direction = mainLightDir;
+		  sceneParam_.lights[0].strength = { strength, strength, strength };
+		  sceneParam_.lights[1].direction = fillLightDir;
+		  sceneParam_.lights[1].strength = { strength / 2, strength / 2, strength / 2 };
+		  sceneParam_.lights[2].direction = backLightDir;
+		  sceneParam_.lights[2].strength = { strength / 4, strength / 4, strength / 4 };
+	  }
+	  // 3
+	  if (keyState.D3)
+	  {
+		  sceneParam_.lights[0].direction = { 0.2f, -0.2f, 0.2f };
+		  sceneParam_.lights[0].strength = { 0.2f, 0.4f, 0.8f };
+		  sceneParam_.lights[1].direction = { -0.2f, -0.2f, 0.2f };
+		  sceneParam_.lights[1].strength = { 0.8f, 0.4f, 0.2f };
+		  sceneParam_.lights[2].direction = { 0.0f, -0.707f, -0.707f };
+		  sceneParam_.lights[2].strength = { 0.4f, 0.4f, 0.4f };
+
+	  }
+  }
+#pragma endregion
 }
 
 void Scene::Impl::Render(Device* device) {
   auto index = device->backBufferIndex();
+
+  lightingShader_->Begin(device->graphicsCommandList());
+
+  // SceneParam転送
+  {
+	  auto v = camera_.view();
+	  auto p = camera_.proj();
+	  auto vp = v * p;
+	  XMStoreFloat4x4(&sceneParam_.view, XMMatrixTranspose(v));
+	  XMStoreFloat4x4(&sceneParam_.proj, XMMatrixTranspose(p));
+	  XMStoreFloat4x4(&sceneParam_.viewProj, XMMatrixTranspose(vp));
+	  sceneParam_.eyePos = camera_.position();
+
+	  sceneParamCb_[index]->Update(&sceneParam_,
+		  sizeof(LightingShader::SceneParam));
+
+	  lightingShader_->SetSceneParam(
+		  sceneParamCb_[index]->resource()->GetGPUVirtualAddress());
+  }
+
+  // マテリアル転送
+  for (auto& mat : materials_) {
+	  mat.second->Update(index);
+  }
+
+  // オブジェクト描画
+  for (auto& obj : renderObjs_) {
+	  LightingShader::ObjectParam param{};
+	  XMStoreFloat4x4(&param.world, XMMatrixTranspose(obj->transform.world));
+	  XMStoreFloat4x4(&param.texTrans,
+		  XMMatrixTranspose(obj->transform.texTrans));
+
+	  // バッファ転送
+	  auto& cbuffer = obj->transCb[index];
+	  cbuffer->Update(&param, sizeof(LightingShader::ObjectParam));
+
+	  // 定数バッファ・テクスチャなどの設定
+	  {
+		  lightingShader_->SetObjectParam(
+			  cbuffer->resource()->GetGPUVirtualAddress());
+
+		  lightingShader_->SetMaterialParam(obj->material->materialCb(index));
+
+		  // テクスチャがあれば設定
+		  if (obj->material->HasTexture()) {
+			  ID3D12DescriptorHeap* srv = nullptr;
+			  std::uint32_t srvOffset = 0;
+			  obj->material->textureDescHeap(&srv, &srvOffset);
+
+			  lightingShader_->SetSrvDescriptorHeap(srv, srvOffset);
+			  lightingShader_->SetSamplerDescriptorHeap(samplerHeap_.Get(), 0);
+		  }
+	  }
+	  // コマンドリスト発行
+	  lightingShader_->Apply();
+
+	  // メッシュ描画コマンド発行
+	  obj->mesh->Draw(device->graphicsCommandList());
+  }
+  lightingShader_->End();
 };
 
 void Scene::Impl::CreateSamplerHeap(Device* device) {
@@ -261,6 +595,199 @@ void Scene::Impl::CreateBufferView(std::unique_ptr<BufferObject>& buffer,
                                        device->cbvDescriptorSize());
   // バッファビューを作る
   device->device()->CreateConstantBufferView(&desc, handle);
+}
+
+void Scene::Impl::CreateRenderObj(Device* device)
+{
+	auto bufferSize = device->backBufferSize();
+	// とりあえずティーポットを1個だけ作るよ
+	{
+		auto teapot = std::make_unique<RenderObject>();
+		teapot->mesh = teapotMesh_.get();
+		teapot->transform.texTrans = XMMatrixIdentity();
+		teapot->transCb.resize(bufferSize);
+		for (auto& cb : teapot->transCb) {
+			CreateBufferObject(cb, device->device(),
+				sizeof(LightingShader::ObjectParam));
+		}
+		// マテリアルを設定
+		teapot->material = materials_.at("travertine").get();
+		renderObjs_.emplace_back(std::move(teapot));
+	}
+
+#pragma region 追記
+
+	// 基本は上と同じ
+	{
+		auto teapot = std::make_unique<RenderObject>();
+		teapot->mesh = teapotMesh_.get();
+		teapot->transform.texTrans = XMMatrixIdentity();
+		teapot->transCb.resize(bufferSize);
+		for (auto& cb : teapot->transCb) {
+			CreateBufferObject(cb, device->device(),
+				sizeof(LightingShader::ObjectParam));
+		}
+		// マテリアルをfabricに
+		//teapot->material = materials_.at("fabric").get();
+		
+		//マテリアル変更
+		//課題1
+		teapot->material = materials_.at("sample1").get();
+
+		renderObjs_.emplace_back(std::move(teapot));
+	}
+
+	// 基本は上と同じ
+	{
+		auto teapot = std::make_unique<RenderObject>();
+		teapot->mesh = teapotMesh_.get();
+		teapot->transform.texTrans = XMMatrixIdentity();
+		teapot->transCb.resize(bufferSize);
+		for (auto& cb : teapot->transCb) {
+			CreateBufferObject(cb, device->device(),
+				sizeof(LightingShader::ObjectParam));
+		}
+		// マテリアルをbricksに
+		//teapot->material = materials_.at("bricks").get();
+		
+		//マテリアル変更
+		//課題1
+		teapot->material = materials_.at("sample2").get();
+
+		renderObjs_.emplace_back(std::move(teapot));
+	}
+#pragma endregion
+
+#pragma region 課題
+	//add_mat1
+	{
+
+	}
+#pragma endregion
+
+}
+
+void Scene::Impl::CreateMaterial(Device* device)
+{
+	// マテリアルを作ります
+ // とりあえずすべてマテリアルはデフォルトパラメータ
+ // テクスチャだけが違う状態
+
+	int offset = 0; // デスクリプタヒープの位置
+	{
+		auto t = Singleton<TextureManager>::instance().texture("uv_checker");
+
+		CreateSrv(device, t.Get(),
+			cbvSrvHeap_->GetCPUDescriptorHandleForHeapStart(), offset);
+		auto mat = std::make_unique<Material>();
+		mat->Initialize(device);
+		mat->SetTexture(cbvSrvHeap_.Get(), offset);
+
+		materials_.emplace("uv_checker", std::move(mat));
+		offset++;
+	}
+
+	//	bricks
+	{
+		auto t = Singleton<TextureManager>::instance().texture("bricks");
+
+		CreateSrv(device, t.Get(),
+			cbvSrvHeap_->GetCPUDescriptorHandleForHeapStart(), offset);
+		auto mat = std::make_unique<Material>();
+		mat->Initialize(device);
+		mat->SetTexture(cbvSrvHeap_.Get(), offset);
+
+		materials_.emplace("bricks", std::move(mat));
+		offset++;
+	}
+
+	//	fabric
+	{
+		auto t = Singleton<TextureManager>::instance().texture("fabric");
+
+		CreateSrv(device, t.Get(),
+			cbvSrvHeap_->GetCPUDescriptorHandleForHeapStart(), offset);
+		auto mat = std::make_unique<Material>();
+		mat->Initialize(device);
+		mat->SetTexture(cbvSrvHeap_.Get(), offset);
+
+#pragma region 追記
+		mat->SetRoughness(0.9f);
+		mat->SetFresnel({ 0.05f, 0.05f, 0.05f });
+#pragma endregion
+
+
+		materials_.emplace("fabric", std::move(mat));
+		offset++;
+	}
+
+	//	grass
+	{
+		auto t = Singleton<TextureManager>::instance().texture("grass");
+
+		CreateSrv(device, t.Get(),
+			cbvSrvHeap_->GetCPUDescriptorHandleForHeapStart(), offset);
+		auto mat = std::make_unique<Material>();
+		mat->Initialize(device);
+		mat->SetTexture(cbvSrvHeap_.Get(), offset);
+
+		materials_.emplace("grass", std::move(mat));
+		offset++;
+	}
+
+	//	travertine
+	{
+		auto t = Singleton<TextureManager>::instance().texture("travertine");
+
+		CreateSrv(device, t.Get(),
+			cbvSrvHeap_->GetCPUDescriptorHandleForHeapStart(), offset);
+		auto mat = std::make_unique<Material>();
+		mat->Initialize(device);
+		mat->SetTexture(cbvSrvHeap_.Get(), offset);
+
+		materials_.emplace("travertine", std::move(mat));
+		offset++;
+	}
+
+#pragma region 課題
+	//sample1
+	{
+		auto t = Singleton<TextureManager>::instance().texture("travertine");
+
+		CreateSrv(device, t.Get(),
+			cbvSrvHeap_->GetCPUDescriptorHandleForHeapStart(), offset);
+		auto mat = std::make_unique<Material>();
+		mat->Initialize(device);
+		mat->SetTexture(cbvSrvHeap_.Get(), offset);
+
+		mat->SetFresnel({ 0.1f, 0.9f, 0.1f });
+
+		materials_.emplace("sample1", std::move(mat));
+		offset++;
+	}
+
+	//sample2
+	{
+		auto t = Singleton<TextureManager>::instance().texture("travertine");
+
+		CreateSrv(device, t.Get(),
+			cbvSrvHeap_->GetCPUDescriptorHandleForHeapStart(), offset);
+		auto mat = std::make_unique<Material>();
+		mat->Initialize(device);
+		mat->SetTexture(cbvSrvHeap_.Get(), offset);
+
+		mat->SetDiffuseAlbedo({ 0.2f, 0.2f, 0.2f ,1.0f });
+
+		materials_.emplace("sample2", std::move(mat));
+		offset++;
+	}
+
+	//追加マテリアル
+	{
+
+	}
+#pragma endregion
+
 }
 
 //-------------------------------------------------------------------

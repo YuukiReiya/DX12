@@ -444,6 +444,22 @@ void Scene::Impl::Update(float deltaTime) {
 	  }
   }
 #pragma endregion
+
+#pragma region 課題3 描画
+  {
+	  auto& transform = renderObjs_[3]->transform;
+	  transform.rot.y += XMConvertToRadians(45.f * deltaTime);
+	  auto rotY = XMMatrixRotationY(transform.rot.y);
+
+	  // 0度の時にティーポットの先端がZ+を向くように回転補正
+	  auto fixRot = XMMatrixRotationY(XMConvertToRadians(180.f));
+	  // y = +2の位置
+	  auto trans = XMMatrixTranslation(0.f, 2.f, 0.f);
+	  transform.world = fixRot * rotY * trans;
+
+  }
+#pragma endregion
+
 }
 
 void Scene::Impl::Render(Device* device) {
@@ -659,9 +675,23 @@ void Scene::Impl::CreateRenderObj(Device* device)
 #pragma endregion
 
 #pragma region 課題
+	//描画確認用のオブジェクト
+
 	//add_mat1
 	{
+		auto teapot = std::make_unique<RenderObject>();
+		teapot->mesh = teapotMesh_.get();
+		teapot->transform.texTrans = XMMatrixIdentity();
+		teapot->transCb.resize(bufferSize);
+		for (auto& cb : teapot->transCb) {
+			CreateBufferObject(cb, device->device(),
+				sizeof(LightingShader::ObjectParam));
+		}
+		//マテリアル変更
+		//課題1
+		teapot->material = materials_.at("add_mat").get();
 
+		renderObjs_.emplace_back(std::move(teapot));
 	}
 #pragma endregion
 
@@ -782,9 +812,16 @@ void Scene::Impl::CreateMaterial(Device* device)
 		offset++;
 	}
 
-	//追加マテリアル
+	//追加マテリアル1
 	{
-
+		auto t = Singleton<TextureManager>::instance().texture("uv_checker");
+		CreateSrv(device, t.Get(),
+			cbvSrvHeap_->GetCPUDescriptorHandleForHeapStart(), offset);
+		auto mat = std::make_unique<Material>();
+		mat->Initialize(device);
+		mat->SetTexture(cbvSrvHeap_.Get(), offset);
+		materials_.emplace("add_mat", std::move(mat));
+		offset++;
 	}
 #pragma endregion
 

@@ -20,6 +20,19 @@ cbuffer SceneParam : register(b1) {
 	Light Lights[NUM_DIR_LIGHT];  // ライト（3つ分）
 };
 
+//課題5
+// マテリアル(メッシュの素材設定)毎の定数バッファ
+cbuffer MaterialParam : register(b2) {
+	float4 DiffuseAlbedo;  // 素材の色と思ってよい
+	float3 Fresnel;        // 反射光の色
+	float Roughness;       // 表面の粗さ（反射の具合が変わる）
+
+	// メモリアライメント的にここに追加するのが良い
+	float4x4 MatTrans;  // <=  ここ！マテリアルトランスフォーム
+
+	int useTexture;  // テクスチャ使用フラグ（intなので注意）
+};
+
 VSOutputLitTex main(VSInputPCNT vIn) {
 	VSOutputLitTex vOut = (VSOutputLitTex)0;
 
@@ -35,7 +48,8 @@ VSOutputLitTex main(VSInputPCNT vIn) {
 	// テクスチャのトランスフォーム
 	// UVのスクロールやテクスチャの回転などが使えて便利
 	float4 uv = mul(float4(vIn.uv, 0.0f, 1.0f), TexTrans);
+	uv = mul(uv, MatTrans);       // <= ここ！ここでuvとマテリアルトランスフォームの乗算	vOut.uv = uv.xy;  // .xyでxyzwの4成分からxy成分が渡せる
 	vOut.uv = uv.xy;  // .xyでxyzwの4成分からxy成分が渡せる
-
 	return vOut;
 }
+

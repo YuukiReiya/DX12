@@ -19,6 +19,9 @@ namespace {
 			DirectX::XMFLOAT4 diffuseAlbedo{ 1, 1, 1, 1 };
 			DirectX::XMFLOAT3 fresnel{ 0.5f, 0.5f, 0.5f };
 			float roughness{ 0.1f };
+#pragma region 課題５
+			DirectX::XMFLOAT4X4 mat;
+#pragma endregion
 			int useTexture = 0;
 		};
 
@@ -64,6 +67,14 @@ namespace {
 		 * @brief 面の粗さ設定
 		 */
 		void SetRoughness(float roughness) { material_.roughness = roughness; }
+
+#pragma region 課題５
+		void SetMat(DirectX::XMMATRIX m)
+		{
+			DirectX::XMMatrixTranspose(m);
+			 DirectX::XMStoreFloat4x4(&material_.mat, m);
+		}
+#pragma endregion
 
 		/*
 		 * @brief テクスチャの設定
@@ -362,7 +373,7 @@ void Scene::Impl::Update(float deltaTime) {
     camera_.Tilt(y);
   }
   camera_.UpdateViewMatrix();
-
+  
   // 今回はティーポットは回るだけ。動かしたい人は自分で追加してみよう
   {
 	  auto& transform = renderObjs_[0]->transform;
@@ -423,7 +434,7 @@ void Scene::Impl::Update(float deltaTime) {
 		  constexpr XMFLOAT3 mainLightDir = { 1,1,1, };
 		  constexpr XMFLOAT3 fillLightDir = { 1,1,1, };
 		  constexpr XMFLOAT3 backLightDir = { 1,1,1, };
-		  constexpr float strength = 1.0f;
+		  constexpr float strength = 0.4f;
 		  sceneParam_.lights[0].direction = mainLightDir;
 		  sceneParam_.lights[0].strength = { strength, strength, strength };
 		  sceneParam_.lights[1].direction = fillLightDir;
@@ -472,6 +483,28 @@ void Scene::Impl::Update(float deltaTime) {
   }
 #pragma endregion
 
+#pragma region 課題5
+  //確認用に追加したオブジェクトの配置変更
+  {
+	  auto& transform = renderObjs_[4]->transform;
+	  transform.rot.y += XMConvertToRadians(45.f * deltaTime);
+	  auto rotY = XMMatrixRotationY(transform.rot.y);
+
+	  // 0度の時にティーポットの先端がZ+を向くように回転補正
+	  auto fixRot = XMMatrixRotationY(XMConvertToRadians(180.f));
+	  auto trans = XMMatrixTranslation(2.f, 2.f, 0.f);
+	  transform.world = fixRot * rotY * trans;
+  }
+
+  //追加したマテリアルを動かしてみる
+  {
+	  auto& mat = materials_["add_mat"];
+	  static float matScrollX;
+	  matScrollX += deltaTime;
+	  auto x = XMMatrixTranslation(matScrollX, 0.f, 0.0f);
+	  mat->SetMat(x);
+  }
+#pragma endregion
 
 }
 
@@ -706,6 +739,23 @@ void Scene::Impl::CreateRenderObj(Device* device)
 
 		renderObjs_.emplace_back(std::move(teapot));
 	}
+
+	//課題5確認用
+	{
+		auto teapot = std::make_unique<RenderObject>();
+		teapot->mesh = teapotMesh_.get();
+		teapot->transform.texTrans = XMMatrixIdentity();
+		teapot->transCb.resize(bufferSize);
+		for (auto& cb : teapot->transCb) {
+			CreateBufferObject(cb, device->device(),
+				sizeof(LightingShader::ObjectParam));
+		}
+		//マテリアル変更
+		//課題1
+		teapot->material = materials_.at("add_mat").get();
+
+		renderObjs_.emplace_back(std::move(teapot));
+	}
 #pragma endregion
 
 }
@@ -835,6 +885,14 @@ void Scene::Impl::CreateMaterial(Device* device)
 		mat->SetTexture(cbvSrvHeap_.Get(), offset);
 		materials_.emplace("add_mat", std::move(mat));
 		offset++;
+	}
+#pragma endregion
+
+#pragma region 課題5
+	//	各マテリアルの行列初期化しとく
+	for (auto& it : materials_)
+	{
+		it.second->SetMat(XMMatrixIdentity());
 	}
 #pragma endregion
 

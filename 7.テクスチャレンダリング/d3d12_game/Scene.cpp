@@ -127,21 +127,59 @@ class Scene::Impl {
   // マテリアルは使いまわせるので連想配列に入れて管理
   std::unordered_map<std::string, std::unique_ptr<Material>> materials_;
 
+  /*!
+   * @brief レンダーテクスチャに使うデスクリプタヒープの生成
+   */
   void CreateRenderTextureHeap(Device* device);
-  void CreateRenderTextureObject(Device* device);
-  const UINT RenderTextureSize_{ 512 };
-  ComPtr<ID3D12DescriptorHeap>rtvDescriptorHeap_{ nullptr };
-  ComPtr<ID3D12DescriptorHeap>dsvDescriptorHeap_{ nullptr };
-  ComPtr<ID3D12DescriptorHeap>srvDescriptorHeap_{ nullptr };
 
-  ComPtr<ID3D12Resource>rtTexture_;
-  CD3DX12_CPU_DESCRIPTOR_HANDLE rtv_;
+  /*!
+   * @brief レンダーテクスチャに使うデスクリプタヒープの生成
+   */
+  void CreateRenderTextureObject(Device* device);
+
+  // レンダーテクスチャのサイズ
+  // このサイズである必要はない
+  // 画面全体にエフェクトかけるときはスクリーンサイズで作ったりする
+  const UINT RenderTextureSize_{ 512 };
+
+  // RTV/DSV/SRVのデスクリプタヒープはDevice.cppでも作っているが
+  // バックバッファ用に使う事しか考えてない。修正すると話が
+  // ややこしくなるのでわかりやすさ優先で別物として作る
+  ComPtr<ID3D12DescriptorHeap> rtvDescriptorHeap_{ nullptr };
+  ComPtr<ID3D12DescriptorHeap> dsvDescriptorHeap_{ nullptr };
+
+  // こちらもすでにcbvSrvHeap_を作っているがこちらもわかりやすさのため
+  // 別で作ってみます。仕組みがわかる人はcbvSrvHeap_を使っていいよ
+  ComPtr<ID3D12DescriptorHeap> srvDescriptorHeap_{ nullptr };
+
+  //-----------------------------------------------------------------
+  // レンダーテクスチャ（カラーテクスチャ）
+  // レンダーテクスチャの場合は次の内容で準備する
+  //    1. レンダーターゲットとして使えるテクスチャの作成
+  //    2. レンダーターゲットビューにする
+  //    3. レンダーテクスチャからSRVつくる
+  // ということで変数はテクスチャ1個・ディスクリプタが2個必要
+  //-----------------------------------------------------------------
+  // レンダーテクスチャそのもの
+  ComPtr<ID3D12Resource> rtTexture_;  // rtは"R"ender "T"argetの略
+  // レンダーターゲットとしてのビュー
+  CD3DX12_CPU_DESCRIPTOR_HANDLE rtv_;  // RenderTarget "V"iewの略
+  // rtTexture_のシェーダーリソースとしてのビュー
   CD3DX12_CPU_DESCRIPTOR_HANDLE rtTextureSrv_;
 
-  float clearColor_[4]{ 0.2f,0.2f,0.8f,0.0f };
+  // レンダーターゲット時のクリアカラー
+  // ビュー作成時とコマンドリストでのクリアカラーが一致していないとエラーが出る
+  float clearColor_[4]{ 0.2f, 0.2f, 0.8f, 0.0f };
+
+  // レンダーターゲットのテクスチャを張るキューブオブジェクト<=メッシュデータ！！
   std::unique_ptr<GeometoryMesh> cubeMesh_;
+  // ティーポットとは一緒に描画できないので別の管理にする
   std::vector<std::unique_ptr<RenderObject>> rtCubes_;
+
+  // キューブ描画に使うカメラ
   FpsCamera cubeCamera_;
+
+  // キューブ描画のシーン定数
   LightingShader::SceneParam cubeSceneParam_;
   std::vector<std::unique_ptr<BufferObject>> cubeSceneParamCB_;
 };
@@ -228,286 +266,372 @@ void Scene::Impl::Initialize(Device* device) {
       CreateBufferObject(cb, device->device(),
                          sizeof(LightingShader::SceneParam));
     }
-
-	CreateRenderTextureHeap(device);
-	CreateRenderTextureObject(device);
   }
 
-
+#pragma region add_1119
+  CreateRenderTextureHeap(device);
+  CreateRenderTextureObject(device);
+#pragma endregion
 }
 
 void Scene::Impl::Update(float deltaTime) {
-  auto keyState = Keyboard::Get().GetState();
-  auto mouseState = Mouse::Get().GetState();
+	auto keyState = Keyboard::Get().GetState();
+	auto mouseState = Mouse::Get().GetState();
 
-  // マウスの右ボタン押してるとカメラ更新
-  if (mouseState.rightButton) {
-    if (keyState.W) {
-      camera_.Dolly(+3.0f * deltaTime);
-    }
-    if (keyState.S) {
-      camera_.Dolly(-3.0f * deltaTime);
-    }
+	// マウスの右ボタン押してるとカメラ更新
+	if (mouseState.rightButton) {
+		if (keyState.W) {
+			camera_.Dolly(+3.0f * deltaTime);
+		}
+		if (keyState.S) {
+			camera_.Dolly(-3.0f * deltaTime);
+		}
 
-    if (keyState.D) {
-      camera_.Truck(+3.0f * deltaTime);
-    }
-    if (keyState.A) {
-      camera_.Truck(-3.0f * deltaTime);
-    }
+		if (keyState.D) {
+			camera_.Truck(+3.0f * deltaTime);
+		}
+		if (keyState.A) {
+			camera_.Truck(-3.0f * deltaTime);
+		}
 
-    if (keyState.Q) {
-      camera_.Boom(+3.0f * deltaTime);
-    }
-    if (keyState.E) {
-      camera_.Boom(-3.0f * deltaTime);
-    }
+		if (keyState.Q) {
+			camera_.Boom(+3.0f * deltaTime);
+		}
+		if (keyState.E) {
+			camera_.Boom(-3.0f * deltaTime);
+		}
 
-    auto x = static_cast<float>(mouseState.x);
-    auto y = static_cast<float>(mouseState.y);
+		auto x = static_cast<float>(mouseState.x);
+		auto y = static_cast<float>(mouseState.y);
 
-    // 適当な感じで値を補正してます
-    x = XMConvertToRadians(0.3f * x);
-    y = XMConvertToRadians(0.3f * y);
-    camera_.Pan(x);
-    camera_.Tilt(y);
-  }
-  camera_.UpdateViewMatrix();
+		// 適当な感じで値を補正してます
+		x = XMConvertToRadians(0.3f * x);
+		y = XMConvertToRadians(0.3f * y);
+		camera_.Pan(x);
+		camera_.Tilt(y);
+	}
 
-  if (keyState.L && keyState.D1) {
-    sceneParam_.lights[0].strength = {0.8f, 0.8f, 0.8f};
-  }
+#pragma region 追記
+	else
+	{
 
-  if (keyState.L && keyState.D2) {
-    sceneParam_.lights[0].strength = {0.1f, 0.1f, 0.1f};
-  }
+
+		if (keyState.W)
+		{
+
+		}
+
+
+	}
+
+#pragma endregion
+
+
+	camera_.UpdateViewMatrix();
+
+	if (keyState.L && keyState.D1) {
+		sceneParam_.lights[0].strength = { 0.8f, 0.8f, 0.8f };
+	}
+
+	if (keyState.L && keyState.D2) {
+		sceneParam_.lights[0].strength = { 0.1f, 0.1f, 0.1f };
+	}
 
 #pragma region 課題2
-  //キューブ座標
-  {
-	  auto& trans = rtCubes_[0]->transform;
-	  trans.pos = { 0,0,5 };
-	  XMMATRIX s, r, t;
-	  s = XMMatrixScaling(trans.sca.x, trans.sca.y, trans.sca.z);
-	  r = XMMatrixRotationRollPitchYaw(trans.rot.x, trans.rot.y, trans.rot.z);
-	  t = XMMatrixTranslation(trans.pos.x, trans.pos.y, trans.pos.z);
-	  trans.world = s * r * t;
-  }
+	//変更箇所が複数あると大変だし、一か所にまとめて書く。本来はやらんよ。。。
+
+
+	//ティーポット2つはスケールゼロで非表示にする
+	{
+		auto objs = { &renderObjs_[1]->transform,&renderObjs_[2]->transform, };
+		for (auto it : objs)
+		{
+			it->world = XMMatrixScaling(0, 0, 0);
+		}
+	}
+	//キューブの座標
+	const XMFLOAT3 c_CubePos{ 0,0,5 };
+	{
+		auto& transform = rtCubes_[0]->transform;
+
+		transform.sca.x = transform.sca.y = transform.sca.z = 2.0f;
+
+		XMMATRIX s, r, t;
+		s = XMMatrixScaling(transform.sca.x, transform.sca.y, transform.sca.z);
+		r = XMMatrixRotationRollPitchYaw(transform.rot.x, transform.rot.y, transform.rot.z);
+		t = XMMatrixTranslation(c_CubePos.x, c_CubePos.y, c_CubePos.z);
+		transform.world = s * r * t;
+	}
+	//カメラ
+	{
+		auto& cam = cubeCamera_;
+		auto& tmpC = camera_;
+		static XMFLOAT3 pos = { 0,0,-2 };
+		
+		float val = 0.01f;
+		if (keyState.W)
+		{
+			pos.z += val;
+		}
+		if (keyState.S)
+		{
+			pos.z += -val;
+		}
+		if (keyState.Q)
+		{
+			pos.y += val;
+		}
+		if (keyState.E)
+		{
+			pos.y += -val;
+		}
+
+		if (keyState.F)
+		{
+			auto& cc = cubeCamera_;
+			auto& c = camera_;
+
+			XMFLOAT3 cpos = {0,1.f,2};
+			XMFLOAT3 lpos = { c_CubePos };
+			cc.LookAt(cpos, lpos, { 0,1,0 });
+			c.LookAt(cc.position(), { 0,0,0 }, { 0,1,0 });
+			cc.UpdateViewMatrix();
+			c.UpdateViewMatrix();
+		}
+
+		cam.LookAt(
+			pos,
+			{ 0,0,0 },
+			{ 0,1,0 }
+		);
+
+		//cam.LookAt(
+		//	camera_.position(),
+		//	camera_.,
+		//	{ 0,1,0 }
+		//);
+
+		cam.UpdateViewMatrix();
+	}
+
 #pragma endregion
+
+
 }
 
 void Scene::Impl::Render(Device* device) {
-  auto index = device->backBufferIndex();
+	auto index = device->backBufferIndex();
 
-#pragma region レンダリング追記
-  auto commandList = device->graphicsCommandList();
+#pragma region add_1119
+	auto commandList = device->graphicsCommandList();
 
-  //
- // まずは前回までのティーポットをレンダーテクスチャに描画する
- //
+	//
+	// まずは前回までのティーポットをレンダーテクスチャに描画する
+	//
 
- // レンダーターゲットテクスチャの初期設定
-  {
-	  D3D12_CPU_DESCRIPTOR_HANDLE rtvs[]{ rtv_ };
-	  D3D12_CPU_DESCRIPTOR_HANDLE dsv =
-		  device->depthStencilView();  // デフォルトのデプスステンシル
+	// レンダーターゲットテクスチャの初期設定
+	{
+		D3D12_CPU_DESCRIPTOR_HANDLE rtvs[]{ rtv_ };
+		D3D12_CPU_DESCRIPTOR_HANDLE dsv =
+			device->depthStencilView();  // デフォルトのデプスステンシル
 
-	  // まずはレンダーターゲット・デプスをきれいにする
-	  commandList->ClearRenderTargetView(rtv_, clearColor_, 0, nullptr);
-	  // デプスもきれいにしておく
-	  commandList->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0,
-		  nullptr);
+		// まずはレンダーターゲット・デプスをきれいにする
+		commandList->ClearRenderTargetView(rtv_, clearColor_, 0, nullptr);
+		// デプスもきれいにしておく
+		commandList->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0,
+			nullptr);
 
-	  // レンダーテクスチャを描画先にする
-	  commandList->OMSetRenderTargets(_countof(rtvs), rtvs, FALSE, &dsv);
+		// レンダーテクスチャを描画先にする
+		commandList->OMSetRenderTargets(_countof(rtvs), rtvs, FALSE, &dsv);
 
-	  // ビューポート
-	  auto viewport = CD3DX12_VIEWPORT(
-		  0.0f, 0.0f,
-		  static_cast<float>(
-			  RenderTextureSize_),  // 横 テクスチャサイズに合わせる
-		  static_cast<float>(
-			  RenderTextureSize_));  // 縦 テクスチャサイズに合わせる
-	  commandList->RSSetViewports(1, &viewport);
+		// ビューポート
+		auto viewport = CD3DX12_VIEWPORT(
+			0.0f, 0.0f,
+			static_cast<float>(
+				RenderTextureSize_),  // 横 テクスチャサイズに合わせる
+			static_cast<float>(
+				RenderTextureSize_));  // 縦 テクスチャサイズに合わせる
+		commandList->RSSetViewports(1, &viewport);
 
-	  // シザー
-	  auto scissorRect = CD3DX12_RECT(
-		  0, 0,
-		  static_cast<LONG>(RenderTextureSize_),  // 横 テクスチャサイズに合わせる
-		  static_cast<LONG>(
-			  RenderTextureSize_));  // 縦 テクスチャサイズに合わせる
-	  commandList->RSSetScissorRects(1, &scissorRect);
-  }
+		// シザー
+		auto scissorRect = CD3DX12_RECT(
+			0, 0,
+			static_cast<LONG>(RenderTextureSize_),  // 横 テクスチャサイズに合わせる
+			static_cast<LONG>(
+				RenderTextureSize_));  // 縦 テクスチャサイズに合わせる
+		commandList->RSSetScissorRects(1, &scissorRect);
+	}
+	// この下からは前回までの内容
 #pragma endregion
 
-#pragma region 前回の内容
-  lightingShader_->Begin(device->graphicsCommandList());
-  // SceneParam転送
-  {
-    auto v = camera_.view();
-    auto p = camera_.proj();
-    auto vp = v * p;
-    XMStoreFloat4x4(&sceneParam_.view, XMMatrixTranspose(v));
-    XMStoreFloat4x4(&sceneParam_.proj, XMMatrixTranspose(p));
-    XMStoreFloat4x4(&sceneParam_.viewProj, XMMatrixTranspose(vp));
-    sceneParam_.eyePos = camera_.position();
+#pragma region 前回
+	lightingShader_->Begin(device->graphicsCommandList());
+	// SceneParam転送
+	{
+		auto v = camera_.view();
+		auto p = camera_.proj();
+		auto vp = v * p;
+		XMStoreFloat4x4(&sceneParam_.view, XMMatrixTranspose(v));
+		XMStoreFloat4x4(&sceneParam_.proj, XMMatrixTranspose(p));
+		XMStoreFloat4x4(&sceneParam_.viewProj, XMMatrixTranspose(vp));
+		sceneParam_.eyePos = camera_.position();
 
-    sceneParamCb_[index]->Update(&sceneParam_,
-                                 sizeof(LightingShader::SceneParam));
+		sceneParamCb_[index]->Update(&sceneParam_,
+			sizeof(LightingShader::SceneParam));
 
-    lightingShader_->SetSceneParam(
-        sceneParamCb_[index]->resource()->GetGPUVirtualAddress());
-  }
+		lightingShader_->SetSceneParam(
+			sceneParamCb_[index]->resource()->GetGPUVirtualAddress());
+	}
 
-  // マテリアル転送
-  for (auto& mat : materials_) {
-    mat.second->Update(index);
-  }
+	// マテリアル転送
+	for (auto& mat : materials_) {
+		mat.second->Update(index);
+	}
 
-  // オブジェクト描画
-  for (auto& obj : renderObjs_) {
-    LightingShader::ObjectParam param{};
-    XMStoreFloat4x4(&param.world, XMMatrixTranspose(obj->transform.world));
-    XMStoreFloat4x4(&param.texTrans,
-                    XMMatrixTranspose(obj->transform.texTrans));
+	// オブジェクト描画
+	for (auto& obj : renderObjs_) {
+		LightingShader::ObjectParam param{};
+		XMStoreFloat4x4(&param.world, XMMatrixTranspose(obj->transform.world));
+		XMStoreFloat4x4(&param.texTrans,
+			XMMatrixTranspose(obj->transform.texTrans));
 
-    // バッファ転送
-    auto& cbuffer = obj->transCb[index];
-    cbuffer->Update(&param, sizeof(LightingShader::ObjectParam));
+		// バッファ転送
+		auto& cbuffer = obj->transCb[index];
+		cbuffer->Update(&param, sizeof(LightingShader::ObjectParam));
 
-    // 定数バッファ・テクスチャなどの設定
-    {
-      lightingShader_->SetObjectParam(
-          cbuffer->resource()->GetGPUVirtualAddress());
+		// 定数バッファ・テクスチャなどの設定
+		{
+			lightingShader_->SetObjectParam(
+				cbuffer->resource()->GetGPUVirtualAddress());
 
-      lightingShader_->SetMaterialParam(obj->material->materialCb(index));
+			lightingShader_->SetMaterialParam(obj->material->materialCb(index));
 
-      // テクスチャがあれば設定
-      if (obj->material->HasTexture()) {
-        ID3D12DescriptorHeap* srv = nullptr;
-        std::uint32_t srvOffset = 0;
-        obj->material->textureDescHeap(&srv, &srvOffset);
+			// テクスチャがあれば設定
+			if (obj->material->HasTexture()) {
+				ID3D12DescriptorHeap* srv = nullptr;
+				std::uint32_t srvOffset = 0;
+				obj->material->textureDescHeap(&srv, &srvOffset);
 
-        lightingShader_->SetSrvDescriptorHeap(srv, srvOffset);
-        lightingShader_->SetSamplerDescriptorHeap(samplerHeap_.Get(), 0);
-      }
-    }
-    // コマンドリスト発行
-    lightingShader_->Apply();
+				lightingShader_->SetSrvDescriptorHeap(srv, srvOffset);
+				lightingShader_->SetSamplerDescriptorHeap(samplerHeap_.Get(), 0);
+			}
+		}
+		// コマンドリスト発行
+		lightingShader_->Apply();
 
-    // メッシュ描画コマンド発行
-    obj->mesh->Draw(device->graphicsCommandList());
-  }
-  lightingShader_->End();
+		// メッシュ描画コマンド発行
+		obj->mesh->Draw(device->graphicsCommandList());
+	}
+	lightingShader_->End();
 #pragma endregion
 
-#pragma region 追記
-  // レンダーターゲットからテクスチャとして使用可能になるまで待つためのバリア
- // レンダーテクスチャはレンダーターゲットとシェーダーリソースの二つの面を持つ
+#pragma region add_1119
+	// レンダーターゲットからテクスチャとして使用可能になるまで待つためのバリア
+   // レンダーテクスチャはレンダーターゲットとシェーダーリソースの二つの面を持つ
 
-  // 描画コマンドは発行して即時完了しているわけではない。
-  // レンダリングが終わってない状態で、シェーダーリソースになると描画が壊れてしまう。
+	// 描画コマンドは発行して即時完了しているわけではない。
+	// レンダリングが終わってない状態で、シェーダーリソースになると描画が壊れてしまう。
 
-  // そのため実際の描画が終わるまでリソースへバリアを設定し
-  // 適切な状態になるまで次の処理を待ってもらことができる
-  auto barrierToSRV = CD3DX12_RESOURCE_BARRIER::Transition(
-	  rtTexture_.Get(),                    // このテクスチャが
-	  D3D12_RESOURCE_STATE_RENDER_TARGET,  // レンダーターゲットから
-	  D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);  // SRV状態になるまで
-  commandList->ResourceBarrier(                     // 待つ
-	  1,               // 設定するバリアの数
-	  &barrierToSRV);  // バリアのアドレス
+	// そのため実際の描画が終わるまでリソースへバリアを設定し
+	// 適切な状態になるまで次の処理を待ってもらことができる
+	auto barrierToSRV = CD3DX12_RESOURCE_BARRIER::Transition(
+		rtTexture_.Get(),                    // このテクスチャが
+		D3D12_RESOURCE_STATE_RENDER_TARGET,  // レンダーターゲットから
+		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);  // SRV状態になるまで
+	commandList->ResourceBarrier(                     // 待つ
+		1,               // 設定するバリアの数
+		&barrierToSRV);  // バリアのアドレス
 
-  // デバイスが持っているデフォルトのレンダーターゲットを取得
-  auto rtv = device->currentRenderTargetView();  // バックバッファ
-  auto dsv = device->depthStencilView();         // デフォルトのDSV
+	// デバイスが持っているデフォルトのレンダーターゲットを取得
+	auto rtv = device->currentRenderTargetView();  // バックバッファ
+	auto dsv = device->depthStencilView();         // デフォルトのDSV
 
-  // カラーバッファ(レンダーターゲットビュー)のクリア
-  commandList->ClearRenderTargetView(rtv, Colors::CadetBlue, 0, nullptr);
-  // デプスバッファ(デプスステンシルビュー)のクリア
-  commandList->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0,
-	  nullptr);
+	// カラーバッファ(レンダーターゲットビュー)のクリア
+	commandList->ClearRenderTargetView(rtv, Colors::CadetBlue, 0, nullptr);
+	// デプスバッファ(デプスステンシルビュー)のクリア
+	commandList->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0,
+		nullptr);
 
-  // 描画先をバックバッファのレンダーターゲットとする
-  commandList->OMSetRenderTargets(1, &rtv, FALSE, &dsv);
+	// 描画先をバックバッファのレンダーターゲットとする
+	commandList->OMSetRenderTargets(1, &rtv, FALSE, &dsv);
 
-  // ビューポート・シザーもウィンドウに基づく値にする
-  auto viewport = device->screenViewport();
-  commandList->RSSetViewports(1, &viewport);
-  auto scissorRect = device->scissorRect();
-  commandList->RSSetScissorRects(1, &scissorRect);
+	// ビューポート・シザーもウィンドウに基づく値にする
+	auto viewport = device->screenViewport();
+	commandList->RSSetViewports(1, &viewport);
+	auto scissorRect = device->scissorRect();
+	commandList->RSSetScissorRects(1, &scissorRect);
 
-  //
- // ここから描画
- //
+	//
+	// ここから描画
+	//
 
- // シェーダーは使いまわし
-  lightingShader_->Begin(device->graphicsCommandList());
+	// シェーダーは使いまわし
+	lightingShader_->Begin(device->graphicsCommandList());
 
-  // カメラ設定が違うのでSceneParamは転送
-  {
-	  auto v = cubeCamera_.view();
-	  auto p = cubeCamera_.proj();
-	  auto vp = v * p;
-	  XMStoreFloat4x4(&cubeSceneParam_.view, XMMatrixTranspose(v));
-	  XMStoreFloat4x4(&cubeSceneParam_.proj, XMMatrixTranspose(p));
-	  XMStoreFloat4x4(&cubeSceneParam_.viewProj, XMMatrixTranspose(vp));
-	  cubeSceneParam_.eyePos = cubeCamera_.position();
+	// カメラ設定が違うのでSceneParamは転送
+	{
+		auto v = cubeCamera_.view();
+		auto p = cubeCamera_.proj();
+		auto vp = v * p;
+		XMStoreFloat4x4(&cubeSceneParam_.view, XMMatrixTranspose(v));
+		XMStoreFloat4x4(&cubeSceneParam_.proj, XMMatrixTranspose(p));
+		XMStoreFloat4x4(&cubeSceneParam_.viewProj, XMMatrixTranspose(vp));
+		cubeSceneParam_.eyePos = cubeCamera_.position();
 
-	  cubeSceneParamCB_[index]->Update(&cubeSceneParam_,
-		  sizeof(LightingShader::SceneParam));
+		cubeSceneParamCB_[index]->Update(&cubeSceneParam_,
+			sizeof(LightingShader::SceneParam));
 
-	  lightingShader_->SetSceneParam(
-		  cubeSceneParamCB_[index]->resource()->GetGPUVirtualAddress());
-  }
+		lightingShader_->SetSceneParam(
+			cubeSceneParamCB_[index]->resource()->GetGPUVirtualAddress());
+	}
 
-  // オブジェクト描画
-  for (auto& obj : rtCubes_) {
-	  LightingShader::ObjectParam param{};
-	  XMStoreFloat4x4(&param.world, XMMatrixTranspose(obj->transform.world));
-	  XMStoreFloat4x4(&param.texTrans,
-		  XMMatrixTranspose(obj->transform.texTrans));
+	// オブジェクト描画
+	for (auto& obj : rtCubes_) {
+		LightingShader::ObjectParam param{};
+		XMStoreFloat4x4(&param.world, XMMatrixTranspose(obj->transform.world));
+		XMStoreFloat4x4(&param.texTrans,
+			XMMatrixTranspose(obj->transform.texTrans));
 
-	  // バッファ転送
-	  auto& cbuffer = obj->transCb[index];
-	  cbuffer->Update(&param, sizeof(LightingShader::ObjectParam));
+		// バッファ転送
+		auto& cbuffer = obj->transCb[index];
+		cbuffer->Update(&param, sizeof(LightingShader::ObjectParam));
 
-	  // 定数バッファ・テクスチャなどの設定
-	  {
-		  lightingShader_->SetObjectParam(
-			  cbuffer->resource()->GetGPUVirtualAddress());
+		// 定数バッファ・テクスチャなどの設定
+		{
+			lightingShader_->SetObjectParam(
+				cbuffer->resource()->GetGPUVirtualAddress());
 
-		  lightingShader_->SetMaterialParam(obj->material->materialCb(index));
+			lightingShader_->SetMaterialParam(obj->material->materialCb(index));
 
-		  // テクスチャがあれば設定
-		  if (obj->material->HasTexture()) {
-			  ID3D12DescriptorHeap* srv = nullptr;
-			  std::uint32_t srvOffset = 0;
-			  obj->material->textureDescHeap(&srv, &srvOffset);
+			// テクスチャがあれば設定
+			if (obj->material->HasTexture()) {
+				ID3D12DescriptorHeap* srv = nullptr;
+				std::uint32_t srvOffset = 0;
+				obj->material->textureDescHeap(&srv, &srvOffset);
 
-			  lightingShader_->SetSrvDescriptorHeap(srv, srvOffset);
-			  lightingShader_->SetSamplerDescriptorHeap(samplerHeap_.Get(), 0);
-		  }
-	  }
-	  // コマンドリスト発行
-	  lightingShader_->Apply();
+				lightingShader_->SetSrvDescriptorHeap(srv, srvOffset);
+				lightingShader_->SetSamplerDescriptorHeap(samplerHeap_.Get(), 0);
+			}
+		}
+		// コマンドリスト発行
+		lightingShader_->Apply();
 
-	  // メッシュ描画コマンド発行
-	  obj->mesh->Draw(device->graphicsCommandList());
-  }
-  lightingShader_->End();
+		// メッシュ描画コマンド発行
+		obj->mesh->Draw(device->graphicsCommandList());
+	}
+	lightingShader_->End();
 
-  // レンダーテクスチャがシェーダーリソースから
-  // レンダーターゲットとして使えるのを待つ
-  auto toRT = CD3DX12_RESOURCE_BARRIER::Transition(
-	  rtTexture_.Get(),  // レンダーテクスチャが
-	  D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,  // シェーダーリソースから
-	  D3D12_RESOURCE_STATE_RENDER_TARGET);  // レンダーターゲット状態になるまで
+	// レンダーテクスチャがシェーダーリソースから
+	// レンダーターゲットとして使えるのを待つ
+	auto toRT = CD3DX12_RESOURCE_BARRIER::Transition(
+		rtTexture_.Get(),  // レンダーテクスチャが
+		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,  // シェーダーリソースから
+		D3D12_RESOURCE_STATE_RENDER_TARGET);  // レンダーターゲット状態になるまで
 
-  CD3DX12_RESOURCE_BARRIER barriers[] = { toRT };
-  commandList->ResourceBarrier(  // 待ってね
-	  _countof(barriers),  // こんな感じで配列経由で複数のバリア(今は1個だけど)
-	  barriers);  // を一気に設定することもできるよ
+	CD3DX12_RESOURCE_BARRIER barriers[] = { toRT };
+	commandList->ResourceBarrier(  // 待ってね
+		_countof(barriers),  // こんな感じで配列経由で複数のバリア(今は1個だけど)
+		barriers);  // を一気に設定することもできるよ
 #pragma endregion
 }
 
@@ -693,6 +817,8 @@ void Scene::Impl::CreateRenderTextureHeap(Device* device)
 
 void Scene::Impl::CreateRenderTextureObject(Device* device)
 {
+	// 今更だけど。device->device()って凄く悪い名前でしたね！
+ // 後悔しているけどもう直さないぞ！
 	auto dev = device->device();
 
 	// ピクセルの色を記録するテクスチャのデスクリプタ
@@ -753,6 +879,7 @@ void Scene::Impl::CreateRenderTextureObject(Device* device)
 		device->device()->CreateShaderResourceView(rtTexture_.Get(), &srvDesc,
 			rtTextureSrv_);
 	}
+
 	// ここからレンダーテクスチャを画面に出すための設定
 	auto bufferSize = device->backBufferSize();
 

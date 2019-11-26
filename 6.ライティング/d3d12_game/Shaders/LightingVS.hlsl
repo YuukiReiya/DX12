@@ -23,13 +23,12 @@ cbuffer SceneParam : register(b1) {
 //課題5
 // マテリアル(メッシュの素材設定)毎の定数バッファ
 cbuffer MaterialParam : register(b2) {
-	float4 DiffuseAlbedo;  // 素材の色と思ってよい
-	float3 Fresnel;        // 反射光の色
-	float Roughness;       // 表面の粗さ（反射の具合が変わる）
-
 	// メモリアライメント的にここに追加するのが良い
 	float4x4 MatTrans;  // <=  ここ！マテリアルトランスフォーム
 
+	float4 DiffuseAlbedo;  // 素材の色と思ってよい
+	float3 Fresnel;        // 反射光の色
+	float Roughness;       // 表面の粗さ（反射の具合が変わる）
 	int useTexture;  // テクスチャ使用フラグ（intなので注意）
 };
 

@@ -1,0 +1,98 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Shaders">
+      <UniqueIdentifier>{45890886-6f56-471e-bc65-c3ad94b4d509}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="External">
+      <UniqueIdentifier>{5baf5236-a053-48d0-b294-8b00909906d3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="misc">
+      <UniqueIdentifier>278bc1c9-c0e2-460a-a3c9-5c7f15733fc7</UniqueIdentifier>
+      <Extensions>ico;cur;bmp;dds;dlg;fbx;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tga;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Device.hpp" />
+    <ClInclude Include="pch.h" />
+    <ClInclude Include="Utility.hpp" />
+    <ClInclude Include="VertexType.hpp" />
+    <ClInclude Include="Application.hpp" />
+    <ClInclude Include="GeometoryMesh.hpp" />
+    <ClInclude Include="External\StepTimer.h">
+      <Filter>External</Filter>
+    </ClInclude>
+    <ClInclude Include="External\WICTextureLoader12.h">
+      <Filter>External</Filter>
+    </ClInclude>
+    <ClInclude Include="External\d3dx12.h">
+      <Filter>External</Filter>
+    </ClInclude>
+    <ClInclude Include="BufferObject.hpp" />
+    <ClInclude Include="TextureManager.hpp" />
+    <ClInclude Include="Singleton.hpp" />
+    <ClInclude Include="PlatformHelpers.h">
+      <Filter>External</Filter>
+    </ClInclude>
+    <ClInclude Include="External\Keyboard.h">
+      <Filter>External</Filter>
+    </ClInclude>
+    <ClInclude Include="External\Mouse.h">
+      <Filter>External</Filter>
+    </ClInclude>
+    <ClInclude Include="Camera.hpp" />
+    <ClInclude Include="Scene.hpp" />
+    <ClInclude Include="LightingShader.hpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="directx.ico">
+      <Filter>misc</Filter>
+    </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Main.cpp" />
+    <ClCompile Include="pch.cpp" />
+    <ClCompile Include="Utility.cpp" />
+    <ClCompile Include="Application.cpp" />
+    <ClCompile Include="Device.cpp" />
+    <ClCompile Include="GeometoryMesh.cpp" />
+    <ClCompile Include="External\WICTextureLoader12.cpp">
+      <Filter>External</Filter>
+    </ClCompile>
+    <ClCompile Include="BufferObject.cpp" />
+    <ClCompile Include="TextureManager.cpp" />
+    <ClCompile Include="Singleton.cpp" />
+    <ClCompile Include="External\Keyboard.cpp">
+      <Filter>External</Filter>
+    </ClCompile>
+    <ClCompile Include="External\Mouse.cpp">
+      <Filter>External</Filter>
+    </ClCompile>
+    <ClCompile Include="Camera.cpp" />
+    <ClCompile Include="Scene.cpp" />
+    <ClCompile Include="LightingShader.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="resource.rc">
+      <Filter>misc</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Manifest Include="settings.manifest">
+      <Filter>misc</Filter>
+    </Manifest>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Shaders\ShaderCommon.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="Shaders\LightingVS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\LightingPS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+  </ItemGroup>
+</Project>

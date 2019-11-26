@@ -97,7 +97,14 @@ namespace dxapp {
 		psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 		// シャドウのバイアス
 		// シャドウマップにでるアーティファクトを防止する
+#if true
+		//ライトがテクセルとぶつかる高さ?のオフセット
+		//テクセル幅とライトから嘘計算しますねー(DepthBias分高いとこで判定しますね)
 		psoDesc.RasterizerState.DepthBias = 100000;
+#elif
+		//うっすら線が出ちゃってる
+		psoDesc.RasterizerState.DepthBias = 0;
+#endif
 		psoDesc.RasterizerState.DepthBiasClamp = 0.0f;
 		psoDesc.RasterizerState.SlopeScaledDepthBias = 1.0f;
 

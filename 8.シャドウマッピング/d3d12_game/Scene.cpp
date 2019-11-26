@@ -583,7 +583,8 @@ void Scene::Impl::Render(Device* device) {
 		}
 	}
 	lightingShader_->End();
-
+#if true
+	//デバッグ
 #pragma region 追加
 	//シャドウのデバッグ用のコード
 	debugShader_->Begin(device->graphicsCommandList());
@@ -604,7 +605,7 @@ void Scene::Impl::Render(Device* device) {
 	}
 	debugShader_->End();
 #pragma endregion
-
+#endif
 }
 
 void Scene::Impl::CreateSamplerHeap(Device* device) {

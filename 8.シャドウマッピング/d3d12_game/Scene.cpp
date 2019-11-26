@@ -595,7 +595,7 @@ void Scene::Impl::Render(Device* device) {
 			device->srvDescriptorSize()));
 
 		debugShader_->SetSampler(CD3DX12_GPU_DESCRIPTOR_HANDLE(
-			samplerHeap_->GetGPUDescriptorHandleForHeapStart(), 1,
+			samplerHeap_->GetGPUDescriptorHandleForHeapStart(), 0,
 			device->samplerDesctiptorSize()));
 
 		debugShader_->Apply();

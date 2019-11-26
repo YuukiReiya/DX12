@@ -25,6 +25,12 @@ cbuffer SceneParam : register(b1) {
   float4x4 View;      // ビュー行列
   float4x4 Proj;      // 射影行列
   float4x4 ViewProj;  // ビュー射影行列
+
+  //**********************************************
+  //	追加
+  //**********************************************
+  float4x4 ShadowMapTransform;//シャドウマップ用の行列
+  //**********************************************
   float3 EyePos;      // カメラの位置
   float pad;          // メモリの並びを整える用
   float4

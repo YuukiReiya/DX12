@@ -79,6 +79,9 @@
     <ClInclude Include="ShadowMapDebugShader.hpp">
       <Filter>Header</Filter>
     </ClInclude>
+    <ClInclude Include="ShadowMapShader.hpp">
+      <Filter>Header</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Image Include="directx.ico">
@@ -137,6 +140,9 @@
     <ClCompile Include="ShadowMapDebugShader.cpp">
       <Filter>Source</Filter>
     </ClCompile>
+    <ClCompile Include="ShadowMapShader.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="resource.rc">
@@ -170,6 +176,9 @@
       <Filter>Shaders</Filter>
     </FxCompile>
     <FxCompile Include="Shaders\ShadowMapDebugPS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\ShadowMapVS.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
   </ItemGroup>

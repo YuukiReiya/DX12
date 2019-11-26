@@ -9,6 +9,18 @@ Texture2D<float4> Texture : register(t0);
 sampler Sampler : register(s0);
 
 //-------------------------------------------------------------------
+// 11/26 追加ここから
+//-------------------------------------------------------------------
+// シャドウマップ
+Texture2D ShadowMap : register(t1);
+// シャドウマップのサンプラ
+// 通常のサンプラと違うので注意
+SamplerComparisonState ShadowSampler : register(s1);
+//-------------------------------------------------------------------
+// 11/26 追加ここから
+//-------------------------------------------------------------------
+
+//-------------------------------------------------------------------
 // シェーダ内で使うマテリアル（モデルの表面の特性）用構造体
 struct Material {
   float4 diffuseAlbedo;  // わかりやすく言うと表面色
@@ -104,6 +116,50 @@ float4 main(VSOutputLitTex pIn) : SV_TARGET {
 
   // ライティング
   float3 shadowFactor = float3(1.0f, 1.0f, 1.0f);
+
+  //-------------------------------------------------------------------
+  // 11/26 追加ここから
+  //-------------------------------------------------------------------
+  pIn.shadowPos.xyz /= pIn.shadowPos.w;
+
+  float depth = pIn.shadowPos.z;
+
+  uint width, height, mipLevel;
+  ShadowMap.GetDimensions(0, width, height, mipLevel);
+
+  // 1ピクセルをUV値でみたときの数値（テクセルとかいます）
+  float dx = 1.0f / (float)width;
+
+  // 影のエッジがいい感じになるように自前マルチサンプル
+  float shadowColor = 0.0f;
+  const float2 offsets[9] = {
+	  float2(-dx, -dx),  float2(0.0f, -dx),  float2(dx, -dx),
+	  float2(-dx, 0.0f), float2(0.0f, 0.0f), float2(dx, 0.0f),
+	  float2(-dx, +dx),  float2(0.0f, +dx),  float2(dx, +dx) };
+
+  // unrollはコンパイル時にはforを展開（for文ではない状態）させる指示
+  [unroll]
+  for (int i = 0; i < 9; i++) {
+	  // 現在のピクセルと影のピクセルを比較する
+	  shadowColor +=
+		  ShadowMap
+		  .SampleCmpLevelZero(
+			  ShadowSampler,  // SampleCmpLevelZeroだと比較専用のサンプラーを渡せる
+			  pIn.shadowPos.xy +
+			  offsets[i],  // テクスチャ座標なのでxyだけでいいのよ
+			  depth            // 比較する値
+		  ).r;
+  }
+
+  // 9点のピクセルの平均値
+  // pcfとかいう手法(いまはあんまり使わないような気がする)
+  shadowColor /= 9.0f;
+
+  // ライトは3つあるけど影を落とすのは0番のライトだけ
+  shadowFactor[0] = shadowColor;
+  //-------------------------------------------------------------------
+  // 11/26 追加ここから
+  //-------------------------------------------------------------------
   float4 result =
       ComputeLighting(Lights, mat, pIn.posW, pIn.normal, eyeVec, shadowFactor);
 

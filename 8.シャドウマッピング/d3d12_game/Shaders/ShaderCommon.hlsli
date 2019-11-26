@@ -42,9 +42,18 @@ struct VSOutputPCNT {
   float2 uv : TEXCOORD;      // UV
 };
 
+// ライティング頂点シェーダの出力
 struct VSOutputLitTex {
-  float4 posVPW : SV_POSITION;  // 最終的な頂点座標
-  float3 posW : POSITION;       // ワールド変換だけした頂点
-  float3 normal : NORMAL;       // ワールド変換した法線
-  float2 uv : TEXCOORD;         // UV
+	float4 posVPW : SV_POSITION;  // 最終的な頂点座標
+	
+	//***************************************
+	//	追加・変更 ここから
+	float3 posW : POSITION0;       // ワールド変換だけした頂点
+
+	float4 shadowPos : POSITION1;//	float4です！シャドウマップの表示に使います
+	// ここまで
+	//***************************************
+	float3 normal : NORMAL;       // ワールド変換した法線
+	float2 uv : TEXCOORD;         // UV
 };
+

@@ -8,6 +8,12 @@
 #include "Material.hpp"
 #include "TextureManager.hpp"
 
+#pragma region 追加
+#include <DirectXCollision.h>
+#include "ShadowMapDebugShader.hpp"
+#include "ShadowMapShader.hpp"
+#pragma endregion
+
 namespace {
 
 /*!
@@ -44,93 +50,149 @@ using namespace Microsoft::WRL;
  * @brief Sceneクラスの内部実装
  */
 class Scene::Impl {
- public:
-  Impl();
-  ~Impl() = default;
+public:
+	Impl();
+	~Impl() = default;
 
-  /*!
-   * @brief 初期化
-   */
-  void Initialize(Device* device);
+	/*!
+	 * @brief 初期化
+	 */
+	void Initialize(Device* device);
 
-  /*!
-   * @brief 描画
-   */
-  void Render(Device* device);
+	/*!
+	 * @brief 描画
+	 */
+	void Render(Device* device);
 
-  /*!
-   * @brief 更新
-   */
-  void Update(float deltaTime);
+	/*!
+	 * @brief 更新
+	 */
+	void Update(float deltaTime);
 
- private:
-  /*!
-   * @brief CBV/SRVデスクリプタヒープ生成
-   */
-  void CreateCbvSrvHeap(Device* device);
+private:
+	/*!
+	 * @brief CBV/SRVデスクリプタヒープ生成
+	 */
+	void CreateCbvSrvHeap(Device* device);
 
-  /*!
-   * @brief サンプラーデスクリプタヒープ生成
-   */
-  void CreateSamplerHeap(Device* device);
+	/*!
+	 * @brief サンプラーデスクリプタヒープ生成
+	 */
+	void CreateSamplerHeap(Device* device);
 
-  /*!
-   * @brief SRV生成
-   */
-  void CreateSrv(Device* device, ID3D12Resource* tex,
-                 D3D12_CPU_DESCRIPTOR_HANDLE handle, int offset);
+	/*!
+	 * @brief SRV生成
+	 */
+	void CreateSrv(Device* device, ID3D12Resource* tex,
+		D3D12_CPU_DESCRIPTOR_HANDLE handle, int offset);
 
-  /*!
-   * @brief BufferObject生成
-   */
-  void CreateBufferObject(std::unique_ptr<BufferObject>& buffer,
-                          ID3D12Device* device, std::size_t bufferSize);
+	/*!
+	 * @brief BufferObject生成
+	 */
+	void CreateBufferObject(std::unique_ptr<BufferObject>& buffer,
+		ID3D12Device* device, std::size_t bufferSize);
 
-  /*!
-   * @brief BufferObjectからViewを生成
-   */
-  void CreateBufferView(std::unique_ptr<BufferObject>& buffer, Device* device,
-                        D3D12_CPU_DESCRIPTOR_HANDLE heapStart, int offset);
+	/*!
+	 * @brief BufferObjectからViewを生成
+	 */
+	void CreateBufferView(std::unique_ptr<BufferObject>& buffer, Device* device,
+		D3D12_CPU_DESCRIPTOR_HANDLE heapStart, int offset);
 
-  /*!
-   * @brief テクスチャありのRenderObject生成
-   */
-  void CreateRenderObj(Device* device);
+	/*!
+	 * @brief テクスチャありのRenderObject生成
+	 */
+	void CreateRenderObj(Device* device);
 
-  /*!
-   * @brief マテリアル生成
-   */
-  void CreateMaterial(Device* device);
+	/*!
+	 * @brief マテリアル生成
+	 */
+	void CreateMaterial(Device* device);
 
-  // サンプラ デスクリプタヒープ
-  ComPtr<ID3D12DescriptorHeap> samplerHeap_{};
-  // CBV/SRV デスクリプタヒープ
-  ComPtr<ID3D12DescriptorHeap> cbvSrvHeap_{};
+	// サンプラ デスクリプタヒープ
+	ComPtr<ID3D12DescriptorHeap> samplerHeap_{};
+	// CBV/SRV デスクリプタヒープ
+	ComPtr<ID3D12DescriptorHeap> cbvSrvHeap_{};
 
-  // カメラ
-  FpsCamera camera_;
+	// カメラ
+	FpsCamera camera_;
 
-  // シェーダー
-  std::unique_ptr<LightingShader> lightingShader_;
+	// シェーダー
+	std::unique_ptr<LightingShader> lightingShader_;
 
-  // メッシュデータ
-  std::unique_ptr<GeometoryMesh> teapotMesh_;
+	// メッシュデータ
+	std::unique_ptr<GeometoryMesh> teapotMesh_;
 
-  // 描画オブジェクト
-  std::vector<std::unique_ptr<RenderObject>> renderObjs_;
+	// 描画オブジェクト
+	std::vector<std::unique_ptr<RenderObject>> renderObjs_;
 
-  // シーンパラメータ
-  // このサンプルでは1つあればOK
-  LightingShader::SceneParam sceneParam_;
-  std::vector<std::unique_ptr<BufferObject>> sceneParamCb_;
+	// シーンパラメータ
+	// このサンプルでは1つあればOK
+	LightingShader::SceneParam sceneParam_;
+	std::vector<std::unique_ptr<BufferObject>> sceneParamCb_;
 
-  // マテリアルは使いまわせるので連想配列に入れて管理
-  std::unordered_map<std::string, std::unique_ptr<Material>> materials_;
+	// マテリアルは使いまわせるので連想配列に入れて管理
+	std::unordered_map<std::string, std::unique_ptr<Material>> materials_;
 
-  // 影を落とすためにメッシュを用意
-  std::unique_ptr<GeometoryMesh> floorMesh_;
-  std::unique_ptr<GeometoryMesh> wallMesh_;
-  std::unique_ptr<GeometoryMesh> pillarMesh_;
+	// 影を落とすためにメッシュを用意
+	std::unique_ptr<GeometoryMesh> floorMesh_;
+	std::unique_ptr<GeometoryMesh> wallMesh_;
+	std::unique_ptr<GeometoryMesh> pillarMesh_;
+
+#pragma region 追加
+	void CreateDSVHeap(Device* device);
+	void CreateShadowMapSampler(Device* device);
+	void CreateShadowMapObject(Device* device);
+
+	std::unique_ptr<ShadowMapShader>shadowMapShader_;
+
+	// シャドウマップの解像度
+   // これが大きいほど影がきれいにでる。大きすぎると高負荷
+   // このサンプルでは上げても大したことないので
+   // 2048とかでもぜんぜんOK
+	const UINT ShadowMapSize_{ 512 };
+
+	// シャドウマップになるテクスチャ
+	ComPtr<ID3D12Resource> shadowMap_;
+
+	// DSVのデスクリプタヒープ・リソースハンドル
+	ComPtr<ID3D12DescriptorHeap> dsvDescriptorHeap_{ nullptr };
+	// シャドウマップのDSVのハンドル
+	CD3DX12_CPU_DESCRIPTOR_HANDLE shadowMapDsv_;
+	// シャドウマップのSRVハンドル
+	CD3DX12_CPU_DESCRIPTOR_HANDLE shadowMapSrv_;
+
+	// デプスステンシルのクリア値
+	D3D12_CLEAR_VALUE clearDepth_{};
+
+	// シャドウマップ描画用のビューポートとシザー
+	D3D12_VIEWPORT smViewport_ =
+		CD3DX12_VIEWPORT{ 0.0f,
+						 0.0f,
+						 static_cast<float>(ShadowMapSize_),
+						 static_cast<float>(ShadowMapSize_),
+						 0.0f,
+						 1.0f };
+
+	D3D12_RECT smScissor_ = CD3DX12_RECT{ 0, 0, static_cast<LONG>(ShadowMapSize_),
+										 static_cast<LONG>(ShadowMapSize_) };
+
+	// バウンディングスフィア
+	// 影を落とす領域を決めるための球として使う
+	DirectX::BoundingSphere sceneBounds_{};
+
+	// シャドウマップのシーンパラメータ
+	// ライティングの使いまわし
+	LightingShader::SceneParam shadowParam_{};
+
+	// シャドウマップ描画用の定数バッファ
+	std::vector<std::unique_ptr<BufferObject>> shadowSceneCB_;
+
+	// シャドウマップ確認用のクアッド
+	std::unique_ptr<GeometoryMesh> quadMesh_;
+	std::unique_ptr<ShadowMapDebugShader> debugShader_;
+
+#pragma endregion
+
 };
 
 Scene::Impl::Impl(){};
@@ -212,6 +274,11 @@ void Scene::Impl::Initialize(Device* device) {
       CreateBufferObject(cb, device->device(),
                          sizeof(LightingShader::SceneParam));
     }
+
+#pragma region 追加
+	//シャドウマップのオブジェクトを追加
+	CreateShadowMapObject(device);
+#pragma endregion
   }
 }
 
@@ -315,93 +382,229 @@ void Scene::Impl::Update(float deltaTime) {
     XMStoreFloat4x4(&sceneParam_.viewProj, XMMatrixTranspose(vp));
     sceneParam_.eyePos = camera_.position();
   }
+
+#pragma region 追加
+  //シャドウ関連の更新
+  {
+	  // シャドウマップ描画用変数の設定
+	  // 球の領域に収まる部分は影が落ちる
+	  sceneBounds_.Center = XMFLOAT3{ 0.0f, 0.0f, 0.0f };
+
+	  // 影を落としたい範囲
+	  // 今回はfloorメッシュのサイズを包む外接円を描画範囲として使う
+	  sceneBounds_.Radius = sqrtf(15.0f * 15.0f + 15.0f * 15.0f) / 2.0f;
+
+	  // ライトのビュー行列を計算
+	  XMVECTOR dir = XMLoadFloat3(&sceneParam_.lights[0].direction);
+	  XMVECTOR pos = -2.0f * sceneBounds_.Radius * dir;
+	  XMVECTOR target = XMLoadFloat3(&sceneBounds_.Center);
+	  XMVECTOR up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+	  // 普通にLookAtで計算
+	  XMMATRIX view = XMMatrixLookAtLH(pos, target, up);
+
+	  // ビュー行列を使って影描画の領域を決める
+	  XMFLOAT3 sphereCenter;
+	  XMStoreFloat3(&sphereCenter, XMVector3TransformCoord(target, view));
+
+	  // ライト空間の正射影行列つくる
+	  float left = sphereCenter.x - sceneBounds_.Radius;
+	  float right = sphereCenter.x + sceneBounds_.Radius;
+	  float bottom = sphereCenter.y - sceneBounds_.Radius;
+	  float top = sphereCenter.y + sceneBounds_.Radius;
+	  float nearZ = sphereCenter.z - sceneBounds_.Radius;
+	  float farZ = sphereCenter.z + sceneBounds_.Radius;
+	  XMMATRIX proj =
+		  XMMatrixOrthographicOffCenterLH(left, right, bottom, top, nearZ, farZ);
+
+	  // 空間の数値は-1～1だけどUV座標は0～1なので
+	  // この行列をかけるとうまいこと補正されます
+	  XMMATRIX bias{ 0.5f, 0.0f,  0.0f, 0.0f,   //
+					0.0f, -0.5f, 0.0f, 0.0f,   //
+					0.0f, 0.0f,  1.0f, 0.0f,   //
+					0.5f, 0.5f,  0.0f, 1.0f };  //
+
+	  // 定数バッファに設定
+	  XMStoreFloat4x4(&shadowParam_.view, XMMatrixTranspose(view));
+	  XMStoreFloat4x4(&shadowParam_.proj, XMMatrixTranspose(proj));
+
+	  auto vp = XMMatrixMultiply(view, proj);
+	  XMStoreFloat4x4(&shadowParam_.viewProj, XMMatrixTranspose(vp));
+
+	  // ここはsceneParam_に渡しているので注意
+	  XMStoreFloat4x4(&sceneParam_.shadowTransform,
+		  XMMatrixTranspose(XMMatrixMultiply(vp, bias)));
+  }
+#pragma endregion
+
 }
 
 void Scene::Impl::Render(Device* device) {
-  auto index = device->backBufferIndex();
-  auto commandList = device->graphicsCommandList();
+	auto index = device->backBufferIndex();
+	auto commandList = device->graphicsCommandList();
 
-  //
-  // 定数のアップロードも更新でやったほうがいいよねー
-  //
+	//
+	// 定数のアップロードも更新でやったほうがいいよねー
+	//
 
-  // シーン定数を転送
-  sceneParamCb_[index]->Update(&sceneParam_,
-                               sizeof(LightingShader::SceneParam));
+	// シーン定数を転送
+	sceneParamCb_[index]->Update(&sceneParam_,
+		sizeof(LightingShader::SceneParam));
 
-  // マテリアルの定数転送
-  for (auto& mat : materials_) {
-    mat.second->Update(index);
-  }
+	// マテリアルの定数転送
+	for (auto& mat : materials_) {
+		mat.second->Update(index);
+	}
 
-  // オブジェクトの定数
-  for (auto& obj : renderObjs_) {
-    LightingShader::ObjectParam param{};
-    XMStoreFloat4x4(&param.world, XMMatrixTranspose(obj->transform.world));
-    XMStoreFloat4x4(&param.texTrans,
-                    XMMatrixTranspose(obj->transform.texTrans));
-    // バッファ転送
-    obj->transCb[index]->Update(&param, sizeof(LightingShader::ObjectParam));
-  }
+	// オブジェクトの定数
+	for (auto& obj : renderObjs_) {
+		LightingShader::ObjectParam param{};
+		XMStoreFloat4x4(&param.world, XMMatrixTranspose(obj->transform.world));
+		XMStoreFloat4x4(&param.texTrans,
+			XMMatrixTranspose(obj->transform.texTrans));
+		// バッファ転送
+		obj->transCb[index]->Update(&param, sizeof(LightingShader::ObjectParam));
+	}
 
-  // 描画先セット
-  // デフォルトのレンダーターゲットはApplicatioクラスでクリアしている
-  auto rtv = device->currentRenderTargetView();
-  auto dsv = device->depthStencilView();
-  commandList->OMSetRenderTargets(1, &rtv, FALSE, &dsv);
+#pragma region 追加
+	// シャドウマップシーン定数を転送
+	shadowSceneCB_[index]->Update(&shadowParam_,
+		sizeof(LightingShader::SceneParam));
 
-  auto viewport = device->screenViewport();
-  auto scissorRect = device->scissorRect();
-  commandList->RSSetViewports(1, &viewport);
-  commandList->RSSetScissorRects(1, &scissorRect);
+	commandList->RSSetViewports(1, &smViewport_);
+	commandList->RSSetScissorRects(1, &smScissor_);
 
-  // 通常の描画
-  lightingShader_->Begin(device->graphicsCommandList());
-  {
-    lightingShader_->SetSceneParam(
-        sceneParamCb_[index]->resource()->GetGPUVirtualAddress());
+	auto SrvdTosv = CD3DX12_RESOURCE_BARRIER::Transition(
+		shadowMap_.Get(),                        // このテクスチャが
+		D3D12_RESOURCE_STATE_GENERIC_READ,       // SRV状態になるまで
+		D3D12_RESOURCE_STATE_DEPTH_WRITE);       // デプスステンシルから
+	commandList->ResourceBarrier(1, &SrvdTosv);  // 待つ
 
-    // サンプラはずっと同じなので設定してしまう
-    lightingShader_->SetSamplerDescriptorHeap(samplerHeap_.Get());
-    // カラーテクスチャサンプラ
-    auto sampler = CD3DX12_GPU_DESCRIPTOR_HANDLE(
-        samplerHeap_->GetGPUDescriptorHandleForHeapStart(), 0,
-        device->samplerDesctiptorSize());
-    lightingShader_->SetTextureSampler(sampler);
+	// シャドウマップ描画の設定
+	commandList->ClearDepthStencilView(shadowMapDsv_, D3D12_CLEAR_FLAG_DEPTH,
+		1.0f, 0, 0, nullptr);
+	commandList->OMSetRenderTargets(0, nullptr, false, &shadowMapDsv_);
 
-    lightingShader_->SetSrvDescriptorHeap(cbvSrvHeap_.Get());
-    auto srvHeap = cbvSrvHeap_->GetGPUDescriptorHandleForHeapStart();
-    auto srvDescSize = device->srvDescriptorSize();
+	// オブジェクト描画
+	shadowMapShader_->Begin(commandList);
+	{
+		shadowMapShader_->SetSceneParam(
+			shadowSceneCB_[index]->resource()->GetGPUVirtualAddress());
 
-    for (auto& obj : renderObjs_) {
-      // バッファ転送
-      auto& cbuffer = obj->transCb[index];
+		// 影を落とすオブジェクトを描画
+		// 実際のゲームでは事前に視界外のオブジェクトは除外して
+		// 描画負荷を抑えたりする
+		for (auto& obj : renderObjs_) {
+			shadowMapShader_->SetObjectParam(
+				obj->transCb[index]->resource()->GetGPUVirtualAddress());
+			shadowMapShader_->Apply();
+			obj->mesh->Draw(device->graphicsCommandList());
+		}
+	}
+	shadowMapShader_->End();
 
-      // 定数バッファ・テクスチャなどの設定
-      {
-        lightingShader_->SetObjectParam(
-            cbuffer->resource()->GetGPUVirtualAddress());
+	// レンダーテクスチャと同じ要領でシャドウマップの
+	// ステートが変わるのを待ちます
+	auto dsvToSrv = CD3DX12_RESOURCE_BARRIER::Transition(
+		shadowMap_.Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE,
+		D3D12_RESOURCE_STATE_GENERIC_READ);
+	commandList->ResourceBarrier(1, &dsvToSrv);
+#pragma endregion
 
-        lightingShader_->SetMaterialParam(obj->material->materialCb(index));
+	// 描画先セット
+	// デフォルトのレンダーターゲットはApplicatioクラスでクリアしている
+	auto rtv = device->currentRenderTargetView();
+	auto dsv = device->depthStencilView();
+	commandList->OMSetRenderTargets(1, &rtv, FALSE, &dsv);
 
-        // テクスチャがあれば設定
-        if (obj->material->HasTexture()) {
-          ID3D12DescriptorHeap* srv = nullptr;
-          std::uint32_t srvOffset = 0;
-          obj->material->textureDescHeap(&srv, &srvOffset);
-          lightingShader_->SetTexture(
-              CD3DX12_GPU_DESCRIPTOR_HANDLE(srvHeap, srvOffset, srvDescSize));
-        }
-      }
+	auto viewport = device->screenViewport();
+	auto scissorRect = device->scissorRect();
+	commandList->RSSetViewports(1, &viewport);
+	commandList->RSSetScissorRects(1, &scissorRect);
 
-      // コマンドリスト発行
-      lightingShader_->Apply();
+	// 通常の描画
+	lightingShader_->Begin(device->graphicsCommandList());
+	{
+		lightingShader_->SetSceneParam(
+			sceneParamCb_[index]->resource()->GetGPUVirtualAddress());
 
-      // メッシュ描画コマンド発行
-      obj->mesh->Draw(device->graphicsCommandList());
-    }
-  }
-  lightingShader_->End();
+		// サンプラはずっと同じなので設定してしまう
+		lightingShader_->SetSamplerDescriptorHeap(samplerHeap_.Get());
+		// カラーテクスチャサンプラ
+		auto sampler = CD3DX12_GPU_DESCRIPTOR_HANDLE(
+			samplerHeap_->GetGPUDescriptorHandleForHeapStart(), 0,
+			device->samplerDesctiptorSize());
+		lightingShader_->SetTextureSampler(sampler);
+
+#pragma region 追加
+		//	シャドウ用サンプラ
+		sampler = CD3DX12_GPU_DESCRIPTOR_HANDLE(
+			samplerHeap_->GetGPUDescriptorHandleForHeapStart(), 1,
+			device->samplerDesctiptorSize());
+		lightingShader_->SetShadowMapSampler(sampler);
+#pragma endregion
+
+		lightingShader_->SetSrvDescriptorHeap(cbvSrvHeap_.Get());
+		auto srvHeap = cbvSrvHeap_->GetGPUDescriptorHandleForHeapStart();
+		auto srvDescSize = device->srvDescriptorSize();
+
+#pragma region 追加
+		// 影も同じ設定なのでループ外で設定
+		// シャドウマップ
+		lightingShader_->SetShadowMap(
+			CD3DX12_GPU_DESCRIPTOR_HANDLE(srvHeap, 100, srvDescSize));
+#pragma endregion
+
+		for (auto& obj : renderObjs_) {
+			// バッファ転送
+			auto& cbuffer = obj->transCb[index];
+
+			// 定数バッファ・テクスチャなどの設定
+			{
+				lightingShader_->SetObjectParam(
+					cbuffer->resource()->GetGPUVirtualAddress());
+
+				lightingShader_->SetMaterialParam(obj->material->materialCb(index));
+
+				// テクスチャがあれば設定
+				if (obj->material->HasTexture()) {
+					ID3D12DescriptorHeap* srv = nullptr;
+					std::uint32_t srvOffset = 0;
+					obj->material->textureDescHeap(&srv, &srvOffset);
+					lightingShader_->SetTexture(
+						CD3DX12_GPU_DESCRIPTOR_HANDLE(srvHeap, srvOffset, srvDescSize));
+				}
+			}
+
+			// コマンドリスト発行
+			lightingShader_->Apply();
+
+			// メッシュ描画コマンド発行
+			obj->mesh->Draw(device->graphicsCommandList());
+		}
+	}
+	lightingShader_->End();
+
+#pragma region 追加
+	//シャドウのデバッグ用のコード
+	debugShader_->Begin(device->graphicsCommandList());
+	{
+		debugShader_->SetDescriptorHeap(cbvSrvHeap_.Get(), samplerHeap_.Get());
+
+		debugShader_->SetShadowMap(CD3DX12_GPU_DESCRIPTOR_HANDLE(
+			cbvSrvHeap_->GetGPUDescriptorHandleForHeapStart(), 100,
+			device->srvDescriptorSize()));
+
+		debugShader_->SetSampler(CD3DX12_GPU_DESCRIPTOR_HANDLE(
+			samplerHeap_->GetGPUDescriptorHandleForHeapStart(), 1,
+			device->samplerDesctiptorSize()));
+
+		debugShader_->Apply();
+
+		quadMesh_->Draw(device->graphicsCommandList());
+	}
+	debugShader_->End();
+#pragma endregion
+
 }
 
 void Scene::Impl::CreateSamplerHeap(Device* device) {
@@ -564,6 +767,135 @@ void Scene::Impl::CreateMaterial(Device* device) {
     offset++;
   }
 }
+
+#pragma region 追加
+void Scene::Impl::CreateDSVHeap(Device* device)
+{
+	D3D12_DESCRIPTOR_HEAP_DESC desc{ D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 10,
+								  D3D12_DESCRIPTOR_HEAP_FLAG_NONE, 0 };
+	device->device()->CreateDescriptorHeap(
+		&desc, IID_PPV_ARGS(dsvDescriptorHeap_.ReleaseAndGetAddressOf()));
+}
+
+void Scene::Impl::CreateShadowMapSampler(Device* device)
+{
+	D3D12_SAMPLER_DESC desc{};
+	desc.Filter = D3D12_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT;
+	desc.AddressU =
+		D3D12_TEXTURE_ADDRESS_MODE_BORDER;  // テクスチャの領域外(1.0以上)
+	desc.AddressV =
+		D3D12_TEXTURE_ADDRESS_MODE_BORDER;  // は下のBorderColorの色となる
+	desc.AddressW = D3D12_TEXTURE_ADDRESS_MODE_BORDER;
+	desc.BorderColor[0] = desc.BorderColor[1] = desc.BorderColor[2] =
+		desc.BorderColor[3] = 1.0f;
+	desc.MaxLOD = FLT_MAX;
+	desc.MinLOD = -FLT_MAX;
+	desc.ComparisonFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+
+	auto handleSampler = CD3DX12_CPU_DESCRIPTOR_HANDLE(
+		samplerHeap_->GetCPUDescriptorHandleForHeapStart(),
+		1,  // 0番は使ってるので1番をもらう
+		device->samplerDesctiptorSize());
+
+	// サンプラー生成
+	device->device()->CreateSampler(&desc, handleSampler);
+}
+
+void Scene::Impl::CreateShadowMapObject(Device* device)
+{
+	auto dev = device->device();
+
+	shadowSceneCB_.resize(device->backBufferSize());
+	for (auto& cb : shadowSceneCB_) {
+		CreateBufferObject(cb, device->device(),
+			sizeof(LightingShader::SceneParam));
+	}
+
+	shadowMapShader_ = std::make_unique<ShadowMapShader>();
+	shadowMapShader_->Initialize(device);
+
+	CreateDSVHeap(device);
+	CreateShadowMapSampler(device);
+
+	// シャドウマップになるデプスステンシルテクスチャを作成
+	{
+		D3D12_RESOURCE_DESC desc{};
+		desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+		desc.Alignment = 0;
+		desc.Width = ShadowMapSize_;
+		desc.Height = ShadowMapSize_;
+		desc.DepthOrArraySize = 1;
+		desc.MipLevels = 1;
+		desc.Format = DXGI_FORMAT_R24G8_TYPELESS;  // R8G8B8A8ではない！
+		desc.SampleDesc.Count = 1;
+		desc.SampleDesc.Quality = 0;
+		desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+		desc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+
+		// DXGI_FORMAT_R24G8_TYPELESSでもない
+		clearDepth_.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+		clearDepth_.DepthStencil.Depth = 1.0f;
+		clearDepth_.DepthStencil.Stencil = 0;
+
+		auto type = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+		dev->CreateCommittedResource(&type, D3D12_HEAP_FLAG_NONE, &desc,
+			D3D12_RESOURCE_STATE_GENERIC_READ,
+			&clearDepth_, IID_PPV_ARGS(&shadowMap_));
+	}
+
+	// デプスステンシルビューのデスクリプタハンドルをもらう
+	{
+		shadowMapDsv_ = CD3DX12_CPU_DESCRIPTOR_HANDLE(
+			dsvDescriptorHeap_->GetCPUDescriptorHandleForHeapStart(),
+			0,  // 0番を使う
+			dev->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV));
+
+		D3D12_DEPTH_STENCIL_VIEW_DESC desc{};
+		desc.Flags = D3D12_DSV_FLAG_NONE;
+		desc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+		desc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+		desc.Texture2D.MipSlice = 0;
+
+		// デプスステンシルビュー作成
+		dev->CreateDepthStencilView(shadowMap_.Get(), &desc, shadowMapDsv_);
+	}
+
+	// シェーダーリソースビューのデスクリプタハンドルをもらう
+	{
+		// シャドウマップのSRVは通常のテクスチャで使っているcbvSrvHeap_を
+		// 使うよ。SRVはデスクリプタテーブルでセットする必要があるが
+		// テーブルが読み込むヒープは1個しか渡せないので・・・！めんどい！
+		shadowMapSrv_ = CD3DX12_CPU_DESCRIPTOR_HANDLE(
+			cbvSrvHeap_->GetCPUDescriptorHandleForHeapStart(),
+			100,  // 100番を使う (100番なら開いているだろうという適当な数値）
+			dev->GetDescriptorHandleIncrementSize(
+				D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
+		// 適当に100番を使ったがちゃんと作る時は開いてる番号を取得する
+		// 仕組みを作るといいね
+
+		D3D12_SHADER_RESOURCE_VIEW_DESC desc{};
+		desc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+		desc.Texture2D.MostDetailedMip = 0;
+		desc.Texture2D.MipLevels = 1;
+		desc.Texture2D.ResourceMinLODClamp = 0.0f;
+		desc.Texture2D.PlaneSlice = 0;
+
+		// フォーマットがデプスステンシルのとかわっているので注意
+		// ピクセルシェーダからDXGI_FORMAT_D24_UNORM_S8_UINTはアクセスできない
+		desc.Format = DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+
+		// デプスステンシルビュー作成
+		dev->CreateShaderResourceView(shadowMap_.Get(), &desc, shadowMapSrv_);
+	}
+
+	// デバッグ用
+	quadMesh_ = GeometoryMesh::CreateQuad(device->device(), { 0.0f, 0.0f, 0.0f },
+		1.0f, 1.0f);
+	debugShader_ = std::make_unique<ShadowMapDebugShader>();
+	debugShader_->Initialize(device);
+}
+#pragma endregion
 
 void Scene::Impl::CreateRenderObj(Device* device) {
   // メッシュ作成

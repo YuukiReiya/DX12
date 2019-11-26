@@ -145,6 +145,7 @@ copy /y "$(SolutionDir)bin\$(Platform)\$(Configuration)\$(TargetFileName)" "$(Pr
     <ClInclude Include="pch.h" />
     <ClInclude Include="Scene.hpp" />
     <ClInclude Include="ShadowMapDebugShader.hpp" />
+    <ClInclude Include="ShadowMapShader.hpp" />
     <ClInclude Include="Singleton.hpp" />
     <ClInclude Include="TextureManager.hpp" />
     <ClInclude Include="Utility.hpp" />
@@ -177,6 +178,7 @@ copy /y "$(SolutionDir)bin\$(Platform)\$(Configuration)\$(TargetFileName)" "$(Pr
     </ClCompile>
     <ClCompile Include="Scene.cpp" />
     <ClCompile Include="ShadowMapDebugShader.cpp" />
+    <ClCompile Include="ShadowMapShader.cpp" />
     <ClCompile Include="Singleton.cpp" />
     <ClCompile Include="TextureManager.cpp" />
     <ClCompile Include="Utility.cpp" />
@@ -202,6 +204,10 @@ copy /y "$(SolutionDir)bin\$(Platform)\$(Configuration)\$(TargetFileName)" "$(Pr
     <FxCompile Include="Shaders\ShadowMapDebugVS.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
+    </FxCompile>
+    <FxCompile Include="Shaders\ShadowMapVS.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
     </FxCompile>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

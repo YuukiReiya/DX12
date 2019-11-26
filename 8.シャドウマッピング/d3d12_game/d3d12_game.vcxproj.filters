@@ -1,0 +1,176 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Shaders">
+      <UniqueIdentifier>{45890886-6f56-471e-bc65-c3ad94b4d509}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="External">
+      <UniqueIdentifier>{5baf5236-a053-48d0-b294-8b00909906d3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="misc">
+      <UniqueIdentifier>278bc1c9-c0e2-460a-a3c9-5c7f15733fc7</UniqueIdentifier>
+      <Extensions>ico;cur;bmp;dds;dlg;fbx;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tga;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="Header">
+      <UniqueIdentifier>{4d4514fe-7285-4a92-8fac-ec94cedc1edb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source">
+      <UniqueIdentifier>{201aa8cf-8c60-471c-85e6-1e89d2734a90}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="External\StepTimer.h">
+      <Filter>External</Filter>
+    </ClInclude>
+    <ClInclude Include="External\WICTextureLoader12.h">
+      <Filter>External</Filter>
+    </ClInclude>
+    <ClInclude Include="External\d3dx12.h">
+      <Filter>External</Filter>
+    </ClInclude>
+    <ClInclude Include="PlatformHelpers.h">
+      <Filter>External</Filter>
+    </ClInclude>
+    <ClInclude Include="External\Keyboard.h">
+      <Filter>External</Filter>
+    </ClInclude>
+    <ClInclude Include="External\Mouse.h">
+      <Filter>External</Filter>
+    </ClInclude>
+    <ClInclude Include="Application.hpp">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="BufferObject.hpp">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="Camera.hpp">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="Device.hpp">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="GeometoryMesh.hpp">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="LightingShader.hpp">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="Scene.hpp">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="Singleton.hpp">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="TextureManager.hpp">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="Utility.hpp">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="VertexType.hpp">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="pch.h">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="Material.hpp">
+      <Filter>Header</Filter>
+    </ClInclude>
+    <ClInclude Include="ShadowMapDebugShader.hpp">
+      <Filter>Header</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="directx.ico">
+      <Filter>misc</Filter>
+    </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="External\WICTextureLoader12.cpp">
+      <Filter>External</Filter>
+    </ClCompile>
+    <ClCompile Include="External\Keyboard.cpp">
+      <Filter>External</Filter>
+    </ClCompile>
+    <ClCompile Include="External\Mouse.cpp">
+      <Filter>External</Filter>
+    </ClCompile>
+    <ClCompile Include="Application.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="BufferObject.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Camera.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Device.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="GeometoryMesh.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="LightingShader.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Main.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="pch.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Scene.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Singleton.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="TextureManager.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Utility.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="Material.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+    <ClCompile Include="ShadowMapDebugShader.cpp">
+      <Filter>Source</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="resource.rc">
+      <Filter>misc</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Manifest Include="settings.manifest">
+      <Filter>misc</Filter>
+    </Manifest>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Shaders\ShaderCommon.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\BaseConstant.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Shaders\MaterialConstant.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="Shaders\LightingVS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\LightingPS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\ShadowMapDebugVS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\ShadowMapDebugPS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+  </ItemGroup>
+</Project>

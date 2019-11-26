@@ -308,8 +308,8 @@ void Scene::Impl::Initialize(Device* device) {
 	//カメラ
 	{
 		auto& camera = camera_;
-		static XMFLOAT3 pos = { 0,0,-1 };
-		static XMFLOAT3 target = { 0,0,5 };
+		static XMFLOAT3 pos = { 0,0.5f,5.5f };
+		static XMFLOAT3 target = { 0,0.5f,-2 };
 		float val = 0.01f;
 		//ビュー行列の再生成
 		camera.LookAt(pos, target, c_UpVector);
@@ -423,6 +423,7 @@ void Scene::Impl::Update(float deltaTime) {
 
 	//Texカメラ(キューブのテクスチャ:SRVの描画)
 	{
+
 	}
 
 	//ポットテクスチャ(キューブRTに描画するやつ)
@@ -432,12 +433,10 @@ void Scene::Impl::Update(float deltaTime) {
 		transform.pos = target.pos;
 		transform.rot = target.rot;
 		transform.sca = target.sca;
-		//transform.sca.x *= -1;
-		//transform.sca.y *= -1;
-		//transform.sca.z *= -1;
 
 		//マテリアルいじる
-		renderObjs_[0]->material->SetMatrix(XMMatrixIdentity() * -1);
+		auto m = DirectX::XMMatrixScaling(-1, 1, 1);
+		renderObjs_[0]->material->SetMatrix(m);
 
 		XMMATRIX s, r, t;
 
@@ -449,7 +448,6 @@ void Scene::Impl::Update(float deltaTime) {
 
 	}
 #pragma endregion
-
 
 }
 

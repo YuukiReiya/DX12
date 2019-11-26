@@ -40,6 +40,9 @@ namespace dxapp {
 using namespace DirectX;
 using namespace Microsoft::WRL;
 
+//上向きベクトル:定数で！
+const XMFLOAT3 c_UpVector{ 0,1,0 };
+
 /*!
  * @brief Sceneクラスの内部実装
  */
@@ -187,90 +190,133 @@ class Scene::Impl {
 Scene::Impl::Impl(){};
 
 void Scene::Impl::Initialize(Device* device) {
-  CreateSamplerHeap(device);
-  CreateCbvSrvHeap(device);
+	CreateSamplerHeap(device);
+	CreateCbvSrvHeap(device);
 
-  camera_.LookAt({0, 5, -5}, {0, 0, 0}, {0, 1, 0});
-  camera_.UpdateViewMatrix();
+	camera_.LookAt({ 0, 5, -5 }, { 0, 0, 0 }, { 0, 1, 0 });
+	camera_.UpdateViewMatrix();
 
-  Mouse::Get().SetMode(Mouse::MODE_RELATIVE);
+	Mouse::Get().SetMode(Mouse::MODE_RELATIVE);
 
-  // テクスチャロード
-  {
-    // ダミー用テクスチャ
-    Singleton<TextureManager>::instance().LoadWICTextureFromFile(
-        device, L"Assets/uv_checker.png", "uv_checker");
+	// テクスチャロード
+	{
+		// ダミー用テクスチャ
+		Singleton<TextureManager>::instance().LoadWICTextureFromFile(
+			device, L"Assets/uv_checker.png", "uv_checker");
 
-    Singleton<TextureManager>::instance().LoadWICTextureFromFile(
-        device, L"Assets/bricks.png", "bricks");
+		Singleton<TextureManager>::instance().LoadWICTextureFromFile(
+			device, L"Assets/bricks.png", "bricks");
 
-    Singleton<TextureManager>::instance().LoadWICTextureFromFile(
-        device, L"Assets/fabric.png", "fabric");
+		Singleton<TextureManager>::instance().LoadWICTextureFromFile(
+			device, L"Assets/fabric.png", "fabric");
 
-    Singleton<TextureManager>::instance().LoadWICTextureFromFile(
-        device, L"Assets/grass.png", "grass");
+		Singleton<TextureManager>::instance().LoadWICTextureFromFile(
+			device, L"Assets/grass.png", "grass");
 
-    Singleton<TextureManager>::instance().LoadWICTextureFromFile(
-        device, L"Assets/travertine.png", "travertine");
-  }
+		Singleton<TextureManager>::instance().LoadWICTextureFromFile(
+			device, L"Assets/travertine.png", "travertine");
+	}
 
-  // シェーダー作成
-  lightingShader_ = std::make_unique<LightingShader>();
-  lightingShader_->Initialize(device);
+	// シェーダー作成
+	lightingShader_ = std::make_unique<LightingShader>();
+	lightingShader_->Initialize(device);
 
-  // uv_checkerをダミーテクスチャを設定（uv_checkerはヒープ0にある）
-  lightingShader_->SetDammySrvDescriptorHeap(cbvSrvHeap_.Get(), 0);
-  // さらについでにデフォルトサンプラも入れておきますね
-  lightingShader_->SetDefaultSamplerDescriptorHeap(samplerHeap_.Get(), 0);
+	// uv_checkerをダミーテクスチャを設定（uv_checkerはヒープ0にある）
+	lightingShader_->SetDammySrvDescriptorHeap(cbvSrvHeap_.Get(), 0);
+	// さらについでにデフォルトサンプラも入れておきますね
+	lightingShader_->SetDefaultSamplerDescriptorHeap(samplerHeap_.Get(), 0);
 
-  // メッシュ作成
-  teapotMesh_ = GeometoryMesh::CreateTeapot(device->device());
+	// メッシュ作成
+	teapotMesh_ = GeometoryMesh::CreateTeapot(device->device());
 
-  // マテリアル作成
-  CreateMaterial(device);
+	// マテリアル作成
+	CreateMaterial(device);
 
-  // 描画オブジェクト作成
-  CreateRenderObj(device);
+	// 描画オブジェクト作成
+	CreateRenderObj(device);
 
-  // ライトの設定
-  // ライトが3つあるのは3点照明を作りたいから
-  // 光源が1つだけだど蔭が強すぎるので補助ライトを2つおいてあげる
-  // 現実世界での照明方法ではあるがCGでも一般的
-  // （物理ベースのシェーディングでは使わないけど）　
-  {
-    // 環境光（最低限これくらいは明るい）
-    sceneParam_.ambientLight = {0.25f, 0.25f, 0.25f, 1.0f};
+	// ライトの設定
+	// ライトが3つあるのは3点照明を作りたいから
+	// 光源が1つだけだど蔭が強すぎるので補助ライトを2つおいてあげる
+	// 現実世界での照明方法ではあるがCGでも一般的
+	// （物理ベースのシェーディングでは使わないけど）　
+	{
+		// 環境光（最低限これくらいは明るい）
+		sceneParam_.ambientLight = { 0.25f, 0.25f, 0.25f, 1.0f };
 
-    // メインのライト（キーライトといいます）
-    // 光の向き
-    sceneParam_.lights[0].direction = {0.57f, -0.57f, 0.57f};
-    // メインなのでライトの明るさがほかのより強い
-    sceneParam_.lights[0].strength = {0.8f, 0.8f, 0.8f};
+		// メインのライト（キーライトといいます）
+		// 光の向き
+		sceneParam_.lights[0].direction = { 0.57f, -0.57f, 0.57f };
+		// メインなのでライトの明るさがほかのより強い
+		sceneParam_.lights[0].strength = { 0.8f, 0.8f, 0.8f };
 
-    // 補助ライト1（フィルライト）
-    // キーライトの反対側において、キーライトの陰を弱くします
-    sceneParam_.lights[1].direction = {-0.57f, -0.57f, 0.57f};
-    // ライトはメインより暗くします
-    sceneParam_.lights[1].strength = {0.4f, 0.4f, 0.4f};
+		// 補助ライト1（フィルライト）
+		// キーライトの反対側において、キーライトの陰を弱くします
+		sceneParam_.lights[1].direction = { -0.57f, -0.57f, 0.57f };
+		// ライトはメインより暗くします
+		sceneParam_.lights[1].strength = { 0.4f, 0.4f, 0.4f };
 
-    // 補助ライト2（バックライト）
-    // ほんとはオブジェクトの反対側において輪郭を浮き上がらせるためのライト
-    // 動かすのが面倒なのでいまは固定
-    sceneParam_.lights[2].direction = {0.0f, -0.707f, -0.707f};
-    // ライトは暗め
-    sceneParam_.lights[2].strength = {0.2f, 0.2f, 0.2f};
+		// 補助ライト2（バックライト）
+		// ほんとはオブジェクトの反対側において輪郭を浮き上がらせるためのライト
+		// 動かすのが面倒なのでいまは固定
+		sceneParam_.lights[2].direction = { 0.0f, -0.707f, -0.707f };
+		// ライトは暗め
+		sceneParam_.lights[2].strength = { 0.2f, 0.2f, 0.2f };
 
-    // SceneParamの定数バッファを作成
-    sceneParamCb_.resize(device->backBufferSize());
-    for (auto& cb : sceneParamCb_) {
-      CreateBufferObject(cb, device->device(),
-                         sizeof(LightingShader::SceneParam));
-    }
-  }
+		// SceneParamの定数バッファを作成
+		sceneParamCb_.resize(device->backBufferSize());
+		for (auto& cb : sceneParamCb_) {
+			CreateBufferObject(cb, device->device(),
+				sizeof(LightingShader::SceneParam));
+		}
+	}
 
 #pragma region add_1119
-  CreateRenderTextureHeap(device);
-  CreateRenderTextureObject(device);
+	CreateRenderTextureHeap(device);
+	CreateRenderTextureObject(device);
+#pragma endregion
+
+#pragma region 課題2
+	//初期化
+
+	  //キューブ
+	{
+		const XMFLOAT3 c_CubePos{ 0,1,5 };
+		auto& transform = rtCubes_[0]->transform;
+
+		//大きさ補正
+		transform.sca.x = transform.sca.y = transform.sca.z = 2.0f;
+
+		XMMATRIX s, r, t;
+		s = XMMatrixScaling(transform.sca.x, transform.sca.y, transform.sca.z);
+		r = XMMatrixRotationRollPitchYaw(transform.rot.x, transform.rot.y, transform.rot.z);
+		t = XMMatrixTranslation(c_CubePos.x, c_CubePos.y, c_CubePos.z);
+		transform.world = s * r * t;
+	}
+	//RTカメラ(ポット，キューブの描画)
+	{
+		auto& camera = cubeCamera_;
+		static XMFLOAT3 pos = { 0,rtCubes_[0]->transform.pos.y+3.f,-1 };
+		static XMFLOAT3 target = { 0,0,5 };
+		//ビュー行列の再生成
+		camera.LookAt(pos, target, c_UpVector);
+
+		//ビュー行列の更新
+		camera.UpdateViewMatrix();
+	}
+
+	//カメラ
+	{
+		auto& camera = camera_;
+		static XMFLOAT3 pos = { 0,0,-1 };
+		static XMFLOAT3 target = { 0,0,5 };
+		float val = 0.01f;
+		//ビュー行列の再生成
+		camera.LookAt(pos, target, c_UpVector);
+
+
+		camera.UpdateViewMatrix();
+	}
 #pragma endregion
 }
 
@@ -280,25 +326,26 @@ void Scene::Impl::Update(float deltaTime) {
 
 	// マウスの右ボタン押してるとカメラ更新
 	if (mouseState.rightButton) {
+		auto& camera = cubeCamera_;
 		if (keyState.W) {
-			camera_.Dolly(+3.0f * deltaTime);
+			camera.Dolly(+3.0f * deltaTime);
 		}
 		if (keyState.S) {
-			camera_.Dolly(-3.0f * deltaTime);
+			camera.Dolly(-3.0f * deltaTime);
 		}
 
 		if (keyState.D) {
-			camera_.Truck(+3.0f * deltaTime);
+			camera.Truck(+3.0f * deltaTime);
 		}
 		if (keyState.A) {
-			camera_.Truck(-3.0f * deltaTime);
+			camera.Truck(-3.0f * deltaTime);
 		}
 
 		if (keyState.Q) {
-			camera_.Boom(+3.0f * deltaTime);
+			camera.Boom(+3.0f * deltaTime);
 		}
 		if (keyState.E) {
-			camera_.Boom(-3.0f * deltaTime);
+			camera.Boom(-3.0f * deltaTime);
 		}
 
 		auto x = static_cast<float>(mouseState.x);
@@ -307,27 +354,11 @@ void Scene::Impl::Update(float deltaTime) {
 		// 適当な感じで値を補正してます
 		x = XMConvertToRadians(0.3f * x);
 		y = XMConvertToRadians(0.3f * y);
-		camera_.Pan(x);
-		camera_.Tilt(y);
+		camera.Pan(x);
+		camera.Tilt(y);
+		camera.UpdateViewMatrix();
 	}
 
-#pragma region 追記
-	else
-	{
-
-
-		if (keyState.W)
-		{
-
-		}
-
-
-	}
-
-#pragma endregion
-
-
-	camera_.UpdateViewMatrix();
 
 	if (keyState.L && keyState.D1) {
 		sceneParam_.lights[0].strength = { 0.8f, 0.8f, 0.8f };
@@ -338,82 +369,85 @@ void Scene::Impl::Update(float deltaTime) {
 	}
 
 #pragma region 課題2
-	//変更箇所が複数あると大変だし、一か所にまとめて書く。本来はやらんよ。。。
-
-
-	//ティーポット2つはスケールゼロで非表示にする
+	//バックバッファに描画したポット
 	{
-		auto objs = { &renderObjs_[1]->transform,&renderObjs_[2]->transform, };
-		for (auto it : objs)
-		{
-			it->world = XMMatrixScaling(0, 0, 0);
-		}
-	}
-	//キューブの座標
-	const XMFLOAT3 c_CubePos{ 0,0,5 };
-	{
-		auto& transform = rtCubes_[0]->transform;
-
-		transform.sca.x = transform.sca.y = transform.sca.z = 2.0f;
-
+		auto& transform = rtCubes_[1]->transform;
 		XMMATRIX s, r, t;
+
+		//移動量
+		XMFLOAT3 velocity{ 0,0,0 };
+
+		//ラジコン移動
+		float mSpeed = 0.05f;
+		float rSpeed = 45;
+		if (!mouseState.rightButton)
+		{
+			if (keyState.W)
+			{
+				velocity.z += +mSpeed;
+			}
+			if (keyState.S)
+			{
+				velocity.z += -mSpeed;
+			}
+			if (keyState.A)
+			{
+				transform.rot.y += XMConvertToRadians(-rSpeed * deltaTime);
+			}
+			if (keyState.D)
+			{
+				transform.rot.y += XMConvertToRadians(+rSpeed * deltaTime);
+			}
+		}
+		//初期化キー
+		if (keyState.R)
+		{
+			//マジックナンバー(;^ω^)
+			transform.pos = { 0,0,3 };
+			transform.rot = {};
+		}
+
+		//行列生成
 		s = XMMatrixScaling(transform.sca.x, transform.sca.y, transform.sca.z);
 		r = XMMatrixRotationRollPitchYaw(transform.rot.x, transform.rot.y, transform.rot.z);
-		t = XMMatrixTranslation(c_CubePos.x, c_CubePos.y, c_CubePos.z);
-		transform.world = s * r * t;
+		t = XMMatrixTranslation(transform.pos.x, transform.pos.y, transform.pos.z);
+
+		//ラジコン移動
+		auto add = XMMatrixTranslation(velocity.x, velocity.y, velocity.z);
+		transform.world = s * add * r * t;
+
+		transform.pos.x = transform.world.r[3].m128_f32[0];
+		transform.pos.y = transform.world.r[3].m128_f32[1];
+		transform.pos.z = transform.world.r[3].m128_f32[2];	
 	}
-	//カメラ
+
+	//Texカメラ(キューブのテクスチャ:SRVの描画)
 	{
-		auto& cam = cubeCamera_;
-		auto& tmpC = camera_;
-		static XMFLOAT3 pos = { 0,0,-2 };
-		
-		float val = 0.01f;
-		if (keyState.W)
-		{
-			pos.z += val;
-		}
-		if (keyState.S)
-		{
-			pos.z += -val;
-		}
-		if (keyState.Q)
-		{
-			pos.y += val;
-		}
-		if (keyState.E)
-		{
-			pos.y += -val;
-		}
-
-		if (keyState.F)
-		{
-			auto& cc = cubeCamera_;
-			auto& c = camera_;
-
-			XMFLOAT3 cpos = {0,1.f,2};
-			XMFLOAT3 lpos = { c_CubePos };
-			cc.LookAt(cpos, lpos, { 0,1,0 });
-			c.LookAt(cc.position(), { 0,0,0 }, { 0,1,0 });
-			cc.UpdateViewMatrix();
-			c.UpdateViewMatrix();
-		}
-
-		cam.LookAt(
-			pos,
-			{ 0,0,0 },
-			{ 0,1,0 }
-		);
-
-		//cam.LookAt(
-		//	camera_.position(),
-		//	camera_.,
-		//	{ 0,1,0 }
-		//);
-
-		cam.UpdateViewMatrix();
 	}
 
+	//ポットテクスチャ(キューブRTに描画するやつ)
+	{
+		auto& transform = renderObjs_[0]->transform;
+		auto& target = rtCubes_[1]->transform;
+		transform.pos = target.pos;
+		transform.rot = target.rot;
+		transform.sca = target.sca;
+		//transform.sca.x *= -1;
+		//transform.sca.y *= -1;
+		//transform.sca.z *= -1;
+
+		//マテリアルいじる
+		renderObjs_[0]->material->SetMatrix(XMMatrixIdentity() * -1);
+
+		XMMATRIX s, r, t;
+
+		//行列生成
+		s = XMMatrixScaling(transform.sca.x, transform.sca.y, transform.sca.z);
+		r = XMMatrixRotationRollPitchYaw(transform.rot.x, transform.rot.y, transform.rot.z);
+		t = XMMatrixTranslation(transform.pos.x, transform.pos.y, transform.pos.z);
+		transform.world = s * r * t;
+
+	}
 #pragma endregion
 
 
@@ -428,6 +462,8 @@ void Scene::Impl::Render(Device* device) {
 	//
 	// まずは前回までのティーポットをレンダーテクスチャに描画する
 	//
+	//※補足
+	//		RT:キューブオブジェクトのテクスチャ(キューブのSRVになるやつ)
 
 	// レンダーターゲットテクスチャの初期設定
 	{
@@ -633,6 +669,11 @@ void Scene::Impl::Render(Device* device) {
 		_countof(barriers),  // こんな感じで配列経由で複数のバリア(今は1個だけど)
 		barriers);  // を一気に設定することもできるよ
 #pragma endregion
+
+#pragma region 課題2
+
+#pragma endregion
+
 }
 
 void Scene::Impl::CreateSamplerHeap(Device* device) {
@@ -793,6 +834,24 @@ void Scene::Impl::CreateMaterial(Device* device) {
     materials_.emplace("travertine", std::move(mat));
     offset++;
   }
+
+#pragma region 課題2
+  //鏡用にマテリアルを複製
+  {
+	  auto t = Singleton<TextureManager>::instance().texture("travertine");
+
+	  CreateSrv(device, t.Get(),
+		  cbvSrvHeap_->GetCPUDescriptorHandleForHeapStart(), offset);
+	  auto mat = std::make_unique<Material>();
+	  mat->Initialize(device);
+	  mat->SetTexture(cbvSrvHeap_.Get(), offset);
+	  mat->SetMatrix(DirectX::XMMatrixIdentity());
+
+	  materials_.emplace("mirror", std::move(mat));
+	  offset++;
+  }
+#pragma endregion
+
 }
 
 void Scene::Impl::CreateRenderTextureHeap(Device* device)
@@ -885,7 +944,7 @@ void Scene::Impl::CreateRenderTextureObject(Device* device)
 
 	cubeMesh_ = GeometoryMesh::CreateCube(dev);
 	{
-		// 適当なマテリアを作ってレンダーテクスチャ割り当て
+		// 適当なマテリアルを作ってレンダーテクスチャ割り当て
 		auto mat = std::make_unique<Material>();
 		mat->Initialize(device);
 		mat->SetTexture(srvDescriptorHeap_.Get(), 0);
@@ -904,6 +963,33 @@ void Scene::Impl::CreateRenderTextureObject(Device* device)
 		rtCubes_.emplace_back(std::move(colorCube));
 	}
 
+#pragma region 課題2
+	//バックバッファに描画するポットのの初期化及び作成
+	//めんどいから、"rtCubes_"にぶち込む
+	{
+		auto teapot = std::make_unique<RenderObject>();
+		teapot->mesh = teapotMesh_.get();
+		teapot->transform.texTrans = XMMatrixIdentity();
+		teapot->transCb.resize(bufferSize);
+		teapot->transform.texTrans = XMMatrixIdentity();
+		teapot->transCb.resize(bufferSize);
+		for (auto& cb : teapot->transCb) {
+			CreateBufferObject(cb, device->device(),
+				sizeof(LightingShader::ObjectParam));
+		}
+		//オブジェクトに貼り付けるマテリアル情報を設定
+		//マテリアルは別にしてみる。
+		teapot->material = materials_.at("travertine").get();
+
+		//追加を"rtCubes_"にする
+		//ココ!！
+		teapot->transform.pos = { 0,0,3 };//位置の初期化をしとく
+		rtCubes_.emplace_back(std::move(teapot));
+	}
+
+#pragma endregion
+
+#pragma region 描画するカメラの設定
 	// ティーポット描画に使うカメラのアスペクトを1.0fにしないと形が歪んじゃう
 	// 試しにした2行をコメントアウトして確認するとよい
 	camera_.SetLens(1.0, XM_PIDIV4, 1.0f, 1000.0f);
@@ -923,49 +1009,33 @@ void Scene::Impl::CreateRenderTextureObject(Device* device)
 		CreateBufferObject(cb, device->device(),
 			sizeof(LightingShader::SceneParam));
 	}
+#pragma endregion
+
 }
 
 void Scene::Impl::CreateRenderObj(Device* device) {
-  auto bufferSize = device->backBufferSize();
-  // とりあえずティーポットを1個だけ作るよ
-  {
-    auto teapot = std::make_unique<RenderObject>();
-    teapot->mesh = teapotMesh_.get();
-    teapot->transform.texTrans = XMMatrixIdentity();
-    teapot->transCb.resize(bufferSize);
-    for (auto& cb : teapot->transCb) {
-      CreateBufferObject(cb, device->device(),
-                         sizeof(LightingShader::ObjectParam));
-    }
-    teapot->material = materials_.at("travertine").get();
-    renderObjs_.emplace_back(std::move(teapot));
-  }
+	auto bufferSize = device->backBufferSize();
+	// とりあえずティーポットを1個だけ作るよ
+	{
+		auto teapot = std::make_unique<RenderObject>();
+		teapot->mesh = teapotMesh_.get();
+		teapot->transform.texTrans = XMMatrixIdentity();
+		teapot->transCb.resize(bufferSize);
+		for (auto& cb : teapot->transCb) {
+			CreateBufferObject(cb, device->device(),
+				sizeof(LightingShader::ObjectParam));
+		}
+		//オブジェクトに貼り付けるマテリアル情報を設定
+		//teapot->material = materials_.at("travertine").get();
+		//renderObjs_.emplace_back(std::move(teapot));
 
-  {
-    auto teapot = std::make_unique<RenderObject>();
-    teapot->mesh = teapotMesh_.get();
-    teapot->transform.texTrans = XMMatrixIdentity();
-    teapot->transCb.resize(bufferSize);
-    for (auto& cb : teapot->transCb) {
-      CreateBufferObject(cb, device->device(),
-                         sizeof(LightingShader::ObjectParam));
-    }
-    teapot->material = materials_.at("fabric").get();
-    renderObjs_.emplace_back(std::move(teapot));
-  }
+#pragma region 課題2
+		teapot->material = materials_.at("mirror").get();
+		renderObjs_.emplace_back(std::move(teapot));
+#pragma endregion
 
-  {
-    auto teapot = std::make_unique<RenderObject>();
-    teapot->mesh = teapotMesh_.get();
-    teapot->transform.texTrans = XMMatrixIdentity();
-    teapot->transCb.resize(bufferSize);
-    for (auto& cb : teapot->transCb) {
-      CreateBufferObject(cb, device->device(),
-                         sizeof(LightingShader::ObjectParam));
-    }
-    teapot->material = materials_.at("bricks").get();
-    renderObjs_.emplace_back(std::move(teapot));
-  }
+
+	}
 }
 
 //-------------------------------------------------------------------

@@ -1,10 +1,10 @@
 */.vs/
 */bin/
 */obj/
-*.vcxproj
-*.filters
 *.user
 */Debug/
 */*/Debug/
 */*/*/Debug/
 */*/*/*/Debug/
+10.MMD/10_MMDModel/d3d12_game/Assets/
+10.MMD/10_MMDModel/d3d12_game/External/imgui/

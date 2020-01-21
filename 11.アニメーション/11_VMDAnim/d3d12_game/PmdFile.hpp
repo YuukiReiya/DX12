@@ -116,6 +116,7 @@ struct VmdMotionFrame {
   DirectX::XMFLOAT3 location;
   DirectX::XMFLOAT4 rotation;
   uint8_t interpolation[64];
+  //---------ここまででキーフレームアニメーションに必要なデータ
 
   DirectX::XMFLOAT4 bezierParam(int i) {
     DirectX::XMFLOAT4 p{};
